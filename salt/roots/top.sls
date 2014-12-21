@@ -1,0 +1,5 @@
+base:
+  '*':
+    - ice
+    - registry
+    - icecap

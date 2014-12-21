@@ -1,0 +1,60 @@
+This
+  https://docs.vagrantup.com/v2/provisioning/salt.html
+explains how to set up Vagrant to do a masterless salt provision.
+
+Under the vagrant root directory (the one containing the Vagrantfile)
+there is a salt/minion file containing only the line 
+  file_client: local
+
+I'm using 22.27.82. salt.states.pkgrepo to add the Ice repository for
+Ubuntu to the host. See: 
+  http://docs.saltstack.com/en/latest/ref/states/all/salt.states.pkgrepo.html
+
+--
+
+Have set up a multi-machine Vagrantfile for icebox-*. See
+  https://docs.vagrantup.com/v2/multi-machine/index.html
+
+To run the salt provisioner on the vm itself:
+  sudo salt-call --local state.highstate
+To run it via Vagrant:
+  vagrant provision icebox-<n>
+
+To get IceGridGUI-3.5.1.jar, install icegrid somewhere
+(e.g. provision one of the vagrant boxes) and copy it from
+/usr/share/java. Run it as java -jar IceGridGUI-3.5.1.jar&.
+
+I'd like to use the salt stuff to provision non-vagrant images.
+
+Next task: make a registry service that we can start and stop.
+The DATA_ROOT will depend on the environment. For a vagrant
+development image it will be /home/vagrant/data. For production
+it might be /home/icecap/data (or just /icecap/data?).
+
+The APP_ROOT will be /vagrant for a vagrant dev image. In order to
+make the slice files importable, APP_ROOT/python will have to be added
+to the PYTHONPATH. It's ugly but slice2py does not seem to make it
+easy to do any other way.
+
+To start the registry is:
+  icegridregistry --Ice.Config=/vagrant/registry.cfg &
+
+The file registry.cfg is currently vagrant-dev specific because it
+assumes /home/vagrant/data is the data directory.
+
+--
+
+To run the demo:
+  cd /vagrant
+  make slice
+  cd servers
+  python demo_server.py
+
+Then in another shell:
+  cd /vagrant/scripts
+  python demo_client.py
+
+At this point demo_server.py should print "Hello World!".
+
+
+
