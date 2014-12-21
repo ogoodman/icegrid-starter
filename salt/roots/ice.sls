@@ -6,9 +6,16 @@ ice_repo:
     - require_in:
       - pkg: icegrid
       - pkg: ice-dev
+      - pkg: ice-utils
 
 icegrid:
-  pkg.installed
+  pkg.installed:
+    - fromrepo: trusty-zeroc
 
 ice-dev:
-  pkg.installed
+  pkg.installed:
+    - fromrepo: trusty-zeroc
+
+ice-utils:
+  pkg.installed:
+    - fromrepo: trusty-zeroc

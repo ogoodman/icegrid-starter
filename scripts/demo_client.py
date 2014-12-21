@@ -1,11 +1,9 @@
-import sys
-import Ice
 from icecap import idemo
+from icecap.base.env import Env
 
-ic = Ice.initialize(sys.argv)
+env = Env()
 
-try:
-    printer = idemo.PrinterPrx.uncheckedCast(ic.stringToProxy("printer:default -p 10000"))
-    printer.printString("Hello World!")
-finally:
-    ic.destroy()
+ic = env.get_communicator()
+
+printer = idemo.PrinterPrx.uncheckedCast(ic.stringToProxy("printer@PrinterAdapter"))
+printer.printString("Hello World!")

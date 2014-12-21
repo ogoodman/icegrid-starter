@@ -9,6 +9,16 @@ there is a salt/minion file containing only the line
 I'm using 22.27.82. salt.states.pkgrepo to add the Ice repository for
 Ubuntu to the host. See: 
   http://docs.saltstack.com/en/latest/ref/states/all/salt.states.pkgrepo.html
+NOTE: you also need to add '- fromrepo: trusty-zeroc' to the pkg.installs 
+(I believe).
+
+Details on how to add the apt package repo came from
+  http://www.zeroc.com/download.html
+specifically, the section on Ubuntu 14.04 (Trusty Tahr).
+See:
+  http://download.zeroc.com/Ice/3.5/ubuntu/dists/trusty-zeroc/Contents-amd64
+for a listing of what's in trusty-zeroc. Don't trust what ubuntu
+suggests: ice35-services was not the right way to get icegridadmin.
 
 --
 
@@ -36,25 +46,36 @@ make the slice files importable, APP_ROOT/python will have to be added
 to the PYTHONPATH. It's ugly but slice2py does not seem to make it
 easy to do any other way.
 
-To start the registry is:
-  icegridregistry --Ice.Config=/vagrant/registry.cfg &
-
-The file registry.cfg is currently vagrant-dev specific because it
-assumes /home/vagrant/data is the data directory.
-
 --
 
-To run the demo:
+Start the registry, if not already running:
+
   cd /vagrant
-  make slice
-  cd servers
-  python demo_server.py
+  make
+  icegridregistry --Ice.Config=/vagrant/registry.cfg &
+
+To run the demo:
+
+  cd /vagrant/servers
+  python demo_server.py --Ice.Config=/vagrant/server.cfg
 
 Then in another shell:
+
   cd /vagrant/scripts
   python demo_client.py
 
 At this point demo_server.py should print "Hello World!".
 
+--
 
+To run the registry admin tool:
 
+  icegridadmin --Ice.Config=/vagrant/client.cfg
+
+--
+
+Figure out how to deploy without using 'vagrant provision'.
+We can still use Vagrant to create VMs but we only go as far as
+installing the salt minion.
+The real object of this is to figure out how to use salt to deal with
+the different requirements while reusing the salt configs.
