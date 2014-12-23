@@ -34,9 +34,8 @@ To get IceGridGUI-3.5.1.jar, install icegrid somewhere
 (e.g. provision one of the vagrant boxes) and copy it from
 /usr/share/java. Run it as java -jar IceGridGUI-3.5.1.jar&.
 
-I'd like to use the salt stuff to provision non-vagrant images.
-
 Next task: make a registry service that we can start and stop.
+
 The DATA_ROOT will depend on the environment. For a vagrant
 development image it will be /home/vagrant/data. For production
 it might be /home/icecap/data (or just /icecap/data?).
@@ -79,3 +78,77 @@ We can still use Vagrant to create VMs but we only go as far as
 installing the salt minion.
 The real object of this is to figure out how to use salt to deal with
 the different requirements while reusing the salt configs.
+
+It seems that the salt-master has a slightly annoying restriction that
+it runs off a single /srv/salt. I suppose a web server has to have a
+root somewhere. What I don't like is that after providing all the sls
+files I will also need to document how to install them where the
+salt-master can use them.
+
+The bootstrapping process for salt minions is documented here:
+  http://docs.saltstack.com/en/latest/topics/installation/ubuntu.html
+It amounts to:
+  sudo add-apt-repository -y ppa:saltstack/salt
+  sudo apt-get update
+  sudo apt-get -y install salt-minion
+
+Then to point it at the master:
+  sudo bash
+  # echo '<salt-master-ip> salt' >> /etc/hosts
+Alternatively we can edit /etc/salt/minion updating the line
+  #master: salt
+That also starts the minion. 
+
+That forms part of the provisioning process for a new Vagrant box to
+serve as an empty salt minion in the boxes directory. From that point
+on the process of provisioning boxes is the normal salt master/minion
+communication.
+
+The master (whose installation process is similar, substituting 'sudo
+apt-get -y install salt-master') will be contacted by the minion.
+We check for the contact and accept the key proposed by the minion:
+  sudo salt-key -L # lists any new keys as proposed
+  sudo salt-key -a <minion-name>
+
+Not clear to me why these commands require root access.
+We can fix that:
+  http://docs.saltstack.com/en/latest/ref/configuration/nonroot.html
+Edited 'user' in /etc/salt/master and restarted salt-master.
+(Not really sure if this is good though because of the warning in the
+documentation about pam authentication issues.)
+Page also says to do this (though config seems to suggest not needed):
+  sudo chown -R oag /etc/salt /var/cache/salt /var/log/salt /var/run/salt
+and then restart the salt-master again.
+
+Got some "Data failed to compile === No matching sls" errors.
+Went back to root again during efforts to fix all the "Data failed.."
+problems. 
+
+It seems the reason for this problem was a mismatch between the salt
+versions installed on the master and minion (with the minion being
+ahead due to my use of the repo there but not on the master).
+I repeated the above apt-add-repository on the master and did
+  sudo apt-get install salt-master --upgrade.
+After that both master and client report the same version.
+
+Symlinked /srv/salt -> /home/oag/Projects/icecap/salt/roots.
+
+Added a pillar file mewlip:/srv/pillar/base.sls that defines the
+password for the icecap svn user for checking out the icecap source.
+
+Somehow need to make it clear as part of the deployment process
+exactly what is needed. It almost looks as if there needs to be a
+salt-master setup process that sets everything up on the master.
+
+With all that in place I was able to do:
+  sudo salt icebox-4 state.sls ice
+
+OK, now if any part of the provisioning process for a vagrant-dev box
+and a pretend production box should be different, I want to see how I
+can parametrize the difference.
+
+Both vagrant and prod .sls files add a PYTHONPATH setting to .bashrc.
+The two need to have different values.
+
+
+
