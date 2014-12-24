@@ -2,15 +2,15 @@
 # vi: set ft=ruby :
 
 require 'yaml'
-pillar = YAML.load_file('pillar/platform/dev.sls')
+pillar = YAML.load_file('../pillar/platform/local.sls')
+
+master_ip = File.read('master-ip')
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/trusty32"
 
   config.ssh.forward_agent = true
   config.ssh.forward_x11 = true
-
-  config.vm.synced_folder "salt/roots/", "/srv/salt/"
 
   pillar["hosts"].each do |hostname, ip|
     config.vm.define hostname do |box|
@@ -19,10 +19,5 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  config.vm.provision :salt do |salt|
-    salt.pillar(pillar)
-
-    salt.minion_config = "salt/minion"
-    salt.run_highstate = true
-  end
+  config.vm.provision "shell", path: "install_salt.sh", args: master_ip
 end

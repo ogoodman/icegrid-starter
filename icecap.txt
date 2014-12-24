@@ -150,5 +150,12 @@ can parametrize the difference.
 Both vagrant and prod .sls files add a PYTHONPATH setting to .bashrc.
 The two need to have different values.
 
+--
+
+Configuration needed for both deployment and runtime configuration
+should all come from the Salt pillar, i.e. from the first
+configuration to be used.
+
+
 
 

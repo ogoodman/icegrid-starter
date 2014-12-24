@@ -1,5 +1,6 @@
-/home/vagrant/data/registry/master:
+{{ pillar['data_root'] }}/registry/master:
   file.directory:
-    - user: vagrant
-    - group: vagrant
+    - user: {{ pillar['userid'] }}
+    - group: {{ pillar['userid'] }}
     - makedirs: True
+

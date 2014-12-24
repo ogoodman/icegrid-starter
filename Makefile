@@ -2,14 +2,9 @@ VPATH=slice
 
 SLICE_FILES:=$(wildcard slice/*.ice)
 SLICE_OUT=python
-SLICE_TARGETS=$(SLICE_FILES:%.ice=$(SLICE_OUT)/%_ice.py)
+SLICE_TARGETS=$(SLICE_FILES:slice/%.ice=$(SLICE_OUT)/%_ice.py)
 
-PY_CONFIG=python/icecap/config.py
-
-all: $(PY_CONFIG) slice configs
-
-$(PY_CONFIG):
-	ln -s config_dev.py $@
+all: slice configs
 
 # Creates slice generated python files and packages.
 slice: $(SLICE_OUT) $(SLICE_TARGETS)

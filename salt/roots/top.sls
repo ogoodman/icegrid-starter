@@ -1,5 +1,4 @@
 base:
   '*':
     - ice
-    - registry
     - icecap
