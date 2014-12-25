@@ -1,4 +1,4 @@
-VPATH=slice
+VPATH=slice grid
 
 SLICE_FILES:=$(wildcard slice/*.ice)
 SLICE_OUT=python
@@ -15,4 +15,5 @@ $(SLICE_OUT)/%_ice.py: %.ice
 configs: registry.cfg client.cfg
 
 %.cfg: python/icecap/config.py
-	python scripts/make_config.py $@ > $@
+	mkdir -p grid
+	python scripts/make_config.py $@ grid/$@

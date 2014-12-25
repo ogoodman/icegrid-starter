@@ -1,3 +1,4 @@
+import os
 import sys
 from icecap import config
 
@@ -16,5 +17,9 @@ TEMPLATE['client.cfg'] = """\
 Ice.Default.Locator=IceGrid/Locator:tcp -h %(ICE_REG_HOST)s -p 4061
 """
 
-print TEMPLATE[sys.argv[1]] % config.__dict__,
+config = TEMPLATE[sys.argv[1]] % config.__dict__
 
+out_file = sys.argv[2]
+
+with open(out_file, 'w') as out:
+    out.write(config)

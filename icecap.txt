@@ -34,8 +34,6 @@ To get IceGridGUI-3.5.1.jar, install icegrid somewhere
 (e.g. provision one of the vagrant boxes) and copy it from
 /usr/share/java. Run it as java -jar IceGridGUI-3.5.1.jar&.
 
-Next task: make a registry service that we can start and stop.
-
 The DATA_ROOT will depend on the environment. For a vagrant
 development image it will be /home/vagrant/data. For production
 it might be /home/icecap/data (or just /icecap/data?).
@@ -147,15 +145,31 @@ OK, now if any part of the provisioning process for a vagrant-dev box
 and a pretend production box should be different, I want to see how I
 can parametrize the difference.
 
-Both vagrant and prod .sls files add a PYTHONPATH setting to .bashrc.
-The two need to have different values.
-
 --
 
 Configuration needed for both deployment and runtime configuration
 should all come from the Salt pillar, i.e. from the first
 configuration to be used.
 
+The upstart configs for Vagrant dev boxes need to start grid services
+after the /vagrant volume is mounted. This explains how:
+
+  http://razius.com/articles/launching-services-after-vagrant-mount/
+
+TODO:
+
+Registry and nodes probably should not automatically restart.
+
+Make it possible to view the node logs via the gui tool
+
+Copy the gui tool into the /vagrant shared folder and document it in
+the readme file.
+
+--
+
+To reload the application:
+
+  icegridadmin --Ice.Config=/vagrant/grid/client.cfg -ux -px -e 'application update /vagrant/grid.xml'
 
 
 

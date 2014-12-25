@@ -49,6 +49,10 @@ subversion:
     - user: {{ pillar['userid'] }}
     - group: {{ pillar['userid'] }}
     - template: jinja
+{% if 'icecap_svn_host' in pillar %}
+    - require:
+      - svn: {{ pillar['icecap_svn_repo'] }}
+{% endif %}
 
 # Set PYTHONPATH to the app_root/python directory.
 /home/{{ pillar['userid'] }}/.bashrc:
@@ -59,5 +63,18 @@ subversion:
       - user: {{ pillar['userid'] }}
 {% endif %}
 
+# Build the project.
+make:
+  cmd.run:
+    - cwd: {{ pillar['app_root'] }}
+    - user: {{ pillar['userid'] }}
+    - env:
+      - PYTHONPATH: {{ pillar['app_root'] }}/python
+    - require:
+      - file: {{ pillar['app_root'] }}/python/icecap/config.py
 
-
+{{ pillar['data_root'] }}:
+  file.directory:
+    - user: {{ pillar['userid'] }}
+    - group: {{ pillar['userid'] }}
+    - makedirs: True

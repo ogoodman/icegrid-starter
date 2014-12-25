@@ -97,3 +97,20 @@ credentials for checking out this project:
 Finally, provision the server:
 
   sudo salt '*' state.highstate
+
+Grid Services
+=============
+
+The icegridregistry is installed as upstart service ice-registry on
+icebox-1. It starts automatically but it can be controlled via
+
+  sudo initctl [start|stop|status] ice-registry
+
+or (for production-like servers)
+
+  sudo salt '*' service.[stop|start] ice-registry
+
+Similarly icegridnode is installed as upstart service ice-node on all
+nodes.
+
+Node logs currently go to /var/log/upstart/ice-node.log on each host.

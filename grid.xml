@@ -1,0 +1,22 @@
+<icegrid>
+  <application name="IceCap">
+    <node name="node1">
+      <server id="DemoServer-node1" exe="python" activation="on-demand">
+        <adapter name="PrinterAdapter" endpoints="tcp"/>
+        <option>servers/demo_server.py</option>
+      </server>
+    </node>
+    <node name="node2">
+      <server id="DemoServer-node2" exe="python" activation="on-demand">
+        <adapter name="PrinterAdapter" endpoints="tcp"/>
+        <option>servers/demo_server.py</option>
+      </server>
+    </node>
+    <node name="node4">
+      <server id="DemoServer-node4" exe="python" activation="on-demand">
+        <adapter name="PrinterAdapter" endpoints="tcp"/>
+        <option>servers/demo_server.py</option>
+      </server>
+    </node>
+  </application>
+</icegrid>
