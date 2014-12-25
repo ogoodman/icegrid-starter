@@ -4,12 +4,13 @@
 
 Usage::
 
-    grid_admin.py [add|update|list|remove]
+    grid_admin.py [add|update|list|remove|show-xml]
 
 * add: adds or updates the IceCap application
 * update: updates the application (assumes it is already loaded)
 * list: lists all loaded applications (normally IceCap or nothing)
 * remove: removes the IceCap application
+* show-xml: shows the generated XML without updating anything
 
 The application configuration is generated from from ``services.yml``
 and ``piller/platform/*.sls``.
@@ -99,7 +100,7 @@ def doAdmin(cmd):
 def queryAdmin(cmd):
     return os.popen(ADMIN_CMD % cmd)
 
-def writeGridXML():
+def gridXML():
     hosts = {}
     for name in os.listdir(PLATFORM_SLS):
         if not name.endswith('.sls'):
@@ -116,11 +117,16 @@ def writeGridXML():
     service_conf = yaml.load(open(os.path.join(APP_ROOT, 'services.yml')))
     services = service_conf['services']
     for service in services:
+        args = service.get('args', [])
+        if isinstance(args, basestring):
+            args = [args]
+        if 'setup' in service:
+            assert 'run' not in service, "Service %(name)s may specify only one of 'setup' or 'run'" % service
+            service['run'] = 'servers/gen_server.py'
+            args.insert(0, service['setup'])
         if service['run'].endswith('.py'):
-            service['opt'] = OPT_FRAG % service['run']
+            args.insert(0, service['run'])
             service['run'] = 'python'
-        else:
-            service['opt'] = ''
         if isinstance(service.get('nodes'), basestring):
             service['nodes'] = [service['nodes']]
         adapter_xml = []
@@ -129,7 +135,10 @@ def writeGridXML():
         if service.get('replicated') in (True, 'both'):
             adapter_xml.append(REPL_ADAPTER_FRAG % service)
             groups_xml.append(GROUP_FRAG % service['name'])
+
+        opts = [OPT_FRAG % arg for arg in args]
         service['adapter'] = ''.join(adapter_xml)
+        service['opt'] = ''.join(opts)
 
     node_xml = []
     for hostname in sorted(hosts):
@@ -143,7 +152,10 @@ def writeGridXML():
             server_xml.append(SERVER_FRAG % service)
         node_xml.append(NODE_FRAG % (node, ''.join(server_xml)))
 
-    xml = APP_FRAG % (''.join(groups_xml), ''.join(node_xml))
+    return APP_FRAG % (''.join(groups_xml), ''.join(node_xml))
+
+def writeGridXML():
+    xml = gridXML()
     with open(GRID_XML_PATH, 'w') as out:
         out.write(xml)
 
@@ -161,6 +173,8 @@ def main():
             print l.strip()
     elif 'remove' in sys.argv[1:]:
         doAdmin('application remove IceCap')
+    elif 'show-xml' in sys.argv[1:]:
+        print gridXML(),
 
 if __name__ == '__main__':
     main()

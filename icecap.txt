@@ -158,3 +158,56 @@ node<n> on the box whose minion id / hostname is icebox-<n>.
 We've added services.yml which contains a list of service
 descriptions. Adapter id's are generated according to a simple naming
 convention and by default every service is added on all nodes.
+
+--
+
+How does this divide up now in terms of grid infrastructure v.s. the
+beginnings of a specific application?
+
+make_config.py # 
+config.py
+  Is used by make_config.py and grid_admin.py.
+  Those are infra.
+
+I've got a whole python-path directory to play with.
+But anyway, unfortunately the python directory will be mixed if it has
+to contain config.py.
+
+application:
+  pillar
+  services.yml
+  servers
+  slice
+  python
+
+generated:
+  grid
+  python/icecap/config.py
+
+infrastructure:
+  local
+  salt (except id_rsa.pub)
+  Makefile (could easily get polluted though)
+  Vagrantfile
+  scripts (need separate for application)
+
+Ok, if we keep this separation we should always be able to provide it
+as a 'starter' project by emptying all the application directories
+or replacing them all with a baby demo example.
+
+To make the separation as complete as possible we should move the two
+infrastructure scripts to an admin/ directory and generate a
+grid_config.py file instead of config.py. The Makefile is
+infrastructure now but that could easily change.
+
+We could separate even better with symlinks but then it would be
+harder to do an svn checkout on the production server.
+I suppose we could check both projects out on the production
+server and add links there.
+
+Could probably eliminate local and put all vagrant stuff in the one
+Vagrantfile. (Start by getting rid of install_salt.sh.)
+
+--
+
+Work on FakeGrid and FakeEnv.

@@ -1,7 +1,10 @@
 services:
   - name: Printer
-    run: servers/demo_server.py
-    replicated: true
+    setup: icecap.servers.printer.setup
+    replicated: both
+    nodes:
+      - node1
+      - node2
 
 # For illustration only:
 # The Logger service is not replicated and runs on a restricted set of nodes.
@@ -16,4 +19,5 @@ unused-services:
 
   - name: Database
     run: servers/db
+    args: debug
     replicated: both
