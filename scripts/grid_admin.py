@@ -1,0 +1,166 @@
+#!/usr/bin/python
+
+"""Script to add, update, list or remove the IceCap grid application.
+
+Usage::
+
+    grid_admin.py [add|update|list|remove]
+
+* add: adds or updates the IceCap application
+* update: updates the application (assumes it is already loaded)
+* list: lists all loaded applications (normally IceCap or nothing)
+* remove: removes the IceCap application
+
+The application configuration is generated from from ``services.yml``
+and ``piller/platform/*.sls``.
+
+Each service corresponds to an executable Ice server. The ``services.yml``
+file should have a ``services`` entry whose value is a list of service
+descriptions.
+
+Each service must define (string) values for the following keys:
+
+* name: name of the service from which adapter ids are generated
+* runs: path of the executable, relative to the APP_ROOT
+
+The following additional keys are optional:
+
+* replicated: may be True, False or (the string) both
+* nodes: may be a node id (string) or list of node ids
+
+If ``replicated`` is False or absent, an adapter with id equal to the name is
+generated. This means that the full adapter id on a given node is 
+``<name>-<node>.<name>``, e.g. ``Printer-node2.Printer``.
+
+If ``replicated`` is True, an adapter-id of the form ``<name>Rep`` is
+generated so that the full adapter id on a given node is
+``<name>-<node>.<name>Rep``, e.g. ``Printer-node2.PrinterRep``.
+Furthermore the adapter is added to an adapter-group of ``<name>Group``.
+
+If ``replicated`` is ``both``, both of the above adapters are generated.
+
+When ``nodes`` is not specified, the service is generated on all nodes.
+If ``nodes`` is a node id, the service is generated on that node only,
+while if it is a list of node ids it is generated for just those nodes.
+"""
+
+import os
+import sys
+import yaml
+
+from icecap.config import ICE_REG_HOST
+from icecap.base.util import appRoot
+
+APP_ROOT = appRoot()
+PLATFORM_SLS = os.path.join(APP_ROOT, 'pillar/platform')
+GRID_XML_PATH = os.path.join(APP_ROOT, 'grid/grid.xml')
+CLIENT_CFG = os.path.join(APP_ROOT, 'grid/client.cfg')
+
+ADMIN_CMD = "icegridadmin --Ice.Config=%s -ux -px -e '%%s'" % CLIENT_CFG
+
+APP_FRAG = """\
+<icegrid>
+  <application name="IceCap">
+%s%s  </application>
+</icegrid>
+"""
+
+NODE_FRAG = """
+    <node name="%s">
+%s    </node>
+"""
+
+ADAPTER_FRAG = """\
+        <adapter name="%(name)s" endpoints="tcp"/>
+"""
+
+REPL_ADAPTER_FRAG = """\
+        <adapter name="%(name)sRep" replica-group="%(name)sGroup" endpoints="tcp"/>
+"""
+
+SERVER_FRAG = """\
+      <server id="%(name)s-%(node)s" exe="%(run)s" activation="on-demand">
+%(opt)s%(adapter)s      </server>
+"""
+
+OPT_FRAG = """\
+        <option>%s</option>
+"""
+
+GROUP_FRAG = """\
+    <replica-group id="%sGroup">
+      <load-balancing type="round-robin" />
+    </replica-group>
+"""
+
+def doAdmin(cmd):
+    return os.system(ADMIN_CMD % cmd)
+
+def queryAdmin(cmd):
+    return os.popen(ADMIN_CMD % cmd)
+
+def writeGridXML():
+    hosts = {}
+    for name in os.listdir(PLATFORM_SLS):
+        if not name.endswith('.sls'):
+            continue
+        try:
+            config = yaml.load(open(os.path.join(PLATFORM_SLS, name)))
+            if config['registry'] == ICE_REG_HOST:
+                hosts.update(config['hosts'])
+        except Exception, e:
+            print >>sys.stderr, 'Warning: exception %e loading %s' % (e, name)
+
+    groups_xml = []
+
+    service_conf = yaml.load(open(os.path.join(APP_ROOT, 'services.yml')))
+    services = service_conf['services']
+    for service in services:
+        if service['run'].endswith('.py'):
+            service['opt'] = OPT_FRAG % service['run']
+            service['run'] = 'python'
+        else:
+            service['opt'] = ''
+        if isinstance(service.get('nodes'), basestring):
+            service['nodes'] = [service['nodes']]
+        adapter_xml = []
+        if service.get('replicated') in (None, False, 'both'):
+            adapter_xml.append(ADAPTER_FRAG % service)
+        if service.get('replicated') in (True, 'both'):
+            adapter_xml.append(REPL_ADAPTER_FRAG % service)
+            groups_xml.append(GROUP_FRAG % service['name'])
+        service['adapter'] = ''.join(adapter_xml)
+
+    node_xml = []
+    for hostname in sorted(hosts):
+        node = 'node' + hostname.rsplit('-', 1)[-1]
+        server_xml = []
+        for service in services:
+            nodes = service.get('nodes')
+            if nodes is not None and node not in nodes:
+                continue
+            service['node'] = node
+            server_xml.append(SERVER_FRAG % service)
+        node_xml.append(NODE_FRAG % (node, ''.join(server_xml)))
+
+    xml = APP_FRAG % (''.join(groups_xml), ''.join(node_xml))
+    with open(GRID_XML_PATH, 'w') as out:
+        out.write(xml)
+
+def main():
+    if 'add' in sys.argv[1:]:
+        apps = [l.strip() for l in queryAdmin('application list')]
+        what = 'update' if 'IceCap' in apps else 'add'
+        writeGridXML()
+        doAdmin('application %s %s' % (what, GRID_XML_PATH))
+    elif 'update' in sys.argv[1:]:
+        writeGridXML()
+        doAdmin('application update %s' % GRID_XML_PATH)
+    elif 'list' in sys.argv[1:]:
+        for l in queryAdmin('application list'):
+            print l.strip()
+    elif 'remove' in sys.argv[1:]:
+        doAdmin('application remove IceCap')
+
+if __name__ == '__main__':
+    main()

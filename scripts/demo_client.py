@@ -5,7 +5,7 @@ env = Env()
 
 ic = env.get_communicator()
 
-addr = "printer@DemoServer-node2.PrinterAdapter"
+addr = "printer@PrinterGroup"
 printer = idemo.PrinterPrx.uncheckedCast(ic.stringToProxy(addr))
 n = 42
 nn = printer.addOne(n)

@@ -10,7 +10,7 @@ class Printer(idemo.Printer):
 env = Env()
 ic = env.get_communicator()
 
-adapter = ic.createObjectAdapter("PrinterAdapter")
+adapter = ic.createObjectAdapter('PrinterRep')
 servant = Printer()
 adapter.add(servant, ic.stringToIdentity('printer'))
 adapter.activate()

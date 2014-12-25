@@ -45,23 +45,9 @@ easy to do any other way.
 
 --
 
-Start the registry, if not already running:
-
-  cd /vagrant
-  make
-  icegridregistry --Ice.Config=/vagrant/registry.cfg &
-
 To run the demo:
 
-  cd /vagrant/servers
-  python demo_server.py --Ice.Config=/vagrant/server.cfg
-
-Then in another shell:
-
-  cd /vagrant/scripts
-  python demo_client.py
-
-At this point demo_server.py should print "Hello World!".
+  python /vagrant/scripts/demo_client.py
 
 --
 
@@ -71,11 +57,8 @@ To run the registry admin tool:
 
 --
 
-Figure out how to deploy without using 'vagrant provision'.
-We can still use Vagrant to create VMs but we only go as far as
+We use Vagrant to create VMs but we only go as far as
 installing the salt minion.
-The real object of this is to figure out how to use salt to deal with
-the different requirements while reusing the salt configs.
 
 It seems that the salt-master has a slightly annoying restriction that
 it runs off a single /srv/salt. I suppose a web server has to have a
@@ -130,35 +113,30 @@ I repeated the above apt-add-repository on the master and did
 After that both master and client report the same version.
 
 Symlinked /srv/salt -> /home/oag/Projects/icecap/salt/roots.
+and /srv/pillar -> /home/oag/Projects/icecap/pillar
 
-Added a pillar file mewlip:/srv/pillar/base.sls that defines the
-password for the icecap svn user for checking out the icecap source.
-
-Somehow need to make it clear as part of the deployment process
-exactly what is needed. It almost looks as if there needs to be a
-salt-master setup process that sets everything up on the master.
-
-With all that in place I was able to do:
-  sudo salt icebox-4 state.sls ice
-
-OK, now if any part of the provisioning process for a vagrant-dev box
-and a pretend production box should be different, I want to see how I
-can parametrize the difference.
-
---
+Salt master setup is documented in readme.txt.
 
 Configuration needed for both deployment and runtime configuration
 should all come from the Salt pillar, i.e. from the first
 configuration to be used.
+
+User provides:
+
+  pillar/passwords.sls
+  salt/roots/id_rsa.pub
+  local/master-ip
 
 The upstart configs for Vagrant dev boxes need to start grid services
 after the /vagrant volume is mounted. This explains how:
 
   http://razius.com/articles/launching-services-after-vagrant-mount/
 
-TODO:
+To reload the application:
 
-Registry and nodes probably should not automatically restart.
+  icegridadmin --Ice.Config=/vagrant/grid/client.cfg -ux -px -e 'application update /vagrant/grid.xml'
+
+TODO:
 
 Make it possible to view the node logs via the gui tool
 
@@ -167,9 +145,16 @@ the readme file.
 
 --
 
-To reload the application:
+How do we generate grid.xml?
 
-  icegridadmin --Ice.Config=/vagrant/grid/client.cfg -ux -px -e 'application update /vagrant/grid.xml'
+The hosts are listed in dev.sls and local.sls. If we want to generate
+an app for all of them we need to load both. So what would work would
+be to check what our registry IP is and then load all the platform sls
+files which specify the same registry IP.
 
+That gives us a nice list of host names. Currently we're putting
+node<n> on the box whose minion id / hostname is icebox-<n>.
 
-
+We've added services.yml which contains a list of service
+descriptions. Adapter id's are generated according to a simple naming
+convention and by default every service is added on all nodes.

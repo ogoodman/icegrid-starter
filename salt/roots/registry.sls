@@ -14,5 +14,14 @@ ice-registry:
   service.running:
     - require:
       - file: /etc/init/ice-registry.conf
+
+python scripts/grid_admin.py add:
+  cmd.run:
+    - user: {{ pillar['userid'] }}
+    - cwd: {{ pillar['app_root'] }}
+    - env:
+      - PYTHONPATH: {{ pillar['app_root'] }}/python
+    - require:
+      - service: ice-registry
+
 {% endif %}
-    

@@ -1,0 +1,19 @@
+services:
+  - name: Printer
+    run: servers/demo_server.py
+    replicated: true
+
+# For illustration only:
+# The Logger service is not replicated and runs on a restricted set of nodes.
+# The database service has both non-replicated and replicated adapters.
+
+unused-services:
+  - name: Logger
+    run: servers/logger
+    nodes:
+      - node1
+      - node4
+
+  - name: Database
+    run: servers/db
+    replicated: both
