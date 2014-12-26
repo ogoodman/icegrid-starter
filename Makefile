@@ -20,3 +20,10 @@ configs: registry.cfg client.cfg
 
 update:
 	python scripts/grid_admin.py update
+
+test:
+	cd python ; nosetests
+
+test-coverage:
+	mkdir -p python/coverage
+	cd python ; nosetests --with-coverage --cover-erase --cover-inclusive --cover-tests --cover-package=icecap --cover-html --cover-html-dir=coverage
