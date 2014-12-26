@@ -66,7 +66,18 @@ class FakeEnv(object):
 
         :param addr: proxy string with replica group or full adapter id
         """
-        return self._grid.get_servant(addr)
+        return FakeProxy(self._grid, addr)
+
+    def replicas(self, proxy):
+        """Returns a list containing all registered replicas of the proxy.
+
+        The list of proxies is cached on the proxy as proxy._proxies.
+
+        :param proxy: a replicated proxy
+        """
+        if not hasattr(proxy, '_replicas'):
+            proxy._replicas = self._grid.replicas(proxy._addr)
+        return proxy._replicas
 
 class FakeGrid(object):
     """Fake version of an IceGrid grid, for use in testing."""
@@ -92,7 +103,7 @@ class FakeGrid(object):
         """
         return FakeEnv(self, server_id)
 
-    def get_servant(self, addr):
+    def get_servant(self, addr, step=True):
         """Obtain a servant by its address.
 
         When getting a servant from a replicated adapter, each
@@ -111,7 +122,8 @@ class FakeGrid(object):
             i, grp_l = grp
             assert len(grp_l) > 0
             adapter = grp_l[i % len(grp_l)]
-            grp[0] = i + 1
+            if step:
+                grp[0] = i + 1
         return self._adapters[adapter][name]
 
     def provide(self, name, adapter, servant):
@@ -142,3 +154,73 @@ class FakeGrid(object):
             grp_l = self._groups[group][1]
             if adapter not in grp_l:
                 grp_l.append(adapter)
+
+    def proxy(self, addr):
+        return FakeProxy(self, addr)
+
+    def replicas(self, addr):
+        """Returns a list containing all registered replicas of the proxy.
+
+        The list of proxies is cached on the proxy as proxy._proxies.
+
+        :param addr: a proxy string
+        """
+        name, adapter = addr.split('@')
+        if not adapter.endswith('Group'):
+            return []
+        adapters = self._groups.get(adapter[:-5], [0, []])[-1]
+        return [self.proxy('%s@%s' % (name, a)) for a in adapters]
+
+ATT_ERR_MSG = "'%s' object has no attribute '%s'" 
+
+class FakeProxy(object):
+    """Simulates an Ice proxy, passing calls through to the servant.
+
+    :param grid: a ``FakeGrid``
+    :param addr: a proxy string indicating a servant
+    """
+    def __init__(self, grid, addr):
+        # We use double underscores to try to avoid name collisions
+        # with random servant private methods.
+        self._grid = grid
+        self._addr = addr
+
+    def _check_attr(self, name):
+        """Raise an ``AttributeError`` if *name* cannot be called on this proxy.
+
+        The attribute must correspond to a method of the servant
+        and it may not contain underscores.
+
+        :param name: the attribute to check
+        """
+        servant = self._servant(step=False)
+        if '_' in name:
+            raise AttributeError(ATT_ERR_MSG % (type(servant), name))
+        method = getattr(servant, name)
+        if not callable(method):
+            raise AttributeError(ATT_ERR_MSG % (type(servant), name))
+
+    def _servant(self, step=True):
+        return self._grid.get_servant(self._addr, step)
+
+    def _call(self, name, *args):
+        return getattr(self._servant(), name)(*args)
+
+    def __getattr__(self, name):
+        # NOTE: we must get the servant on every call rather than saving
+        # a bound method because it could change between calls.
+        if name.startswith('begin_'):
+            fname = name.split('_', 1)[-1]
+            fun = lambda *args: args
+        elif name.startswith('end_'):
+            fname = name.split('_', 1)[-1]
+            fun = lambda args: self._call(fname, *args)
+        else:
+            fname = name
+            fun = lambda *args: self._call(name, *args)
+        self._check_attr(fname)
+        self.__dict__[name] = fun
+        return fun
+
+    def __repr__(self):
+        return self._addr

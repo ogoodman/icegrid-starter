@@ -1,6 +1,6 @@
 import sys
 import unittest
-from cStringIO import StringIO
+from icecap.base.util import grabOutput
 from icecap.testing.fake_grid import FakeGrid
 from printer import setup as setupServer
 
@@ -16,12 +16,10 @@ class PrinterTest(unittest.TestCase):
         proxy = env.get_proxy('printer@PrinterGroup')
         self.assertEqual(proxy.addOne(7), 8)
 
-        try:
-            keep_stdout, sys.stdout = sys.stdout, StringIO()
-            proxy.printString('Hello')
-        finally:
-            grabbed, sys.stdout = sys.stdout, keep_stdout
-        self.assertEqual(grabbed.getvalue(), 'Hello\n')
+        output = grabOutput(proxy.printString, 'Hello')
+        self.assertEqual(output, ('Hello\n', ''))
+
+        self.assertTrue(type(proxy.getRand()) in (int, long))
 
 if __name__ == '__main__':
     unittest.main()

@@ -34,9 +34,8 @@ from icecap.base.util import importSymbol
 def toMostDerived(ob):
     """Converts any ice proxy to its most derived type.
 
-    Queries the proxy for its type, uses that to load
-    the appropriate specific Ice.XxxxPrx class an casts
-    to that type.
+    Queries the proxy for its type, imports the appropriate specific
+    class, and casts to that type.
 
     Returns any non-proxy unchanged.
 
@@ -52,6 +51,7 @@ class Env(object):
     def __init__(self):
         self._ic = None
         self._adapters = {}
+        self._query = None
 
     def _communicator(self):
         """Returns the Ice.Communicator for the configured grid."""
@@ -86,6 +86,20 @@ class Env(object):
         if adapter not in self._adapters:
             self._adapters[adapter] = ic.createObjectAdapter(adapter)
         self._adapters[adapter].add(servant, ic.stringToIdentity(name))
+
+    def replicas(self, proxy):
+        """Returns a list containing all registered replicas of the proxy.
+
+        The list of proxies is cached on the proxy as proxy._proxies so
+        that repeat calls will be faster.
+
+        :param proxy: a replicated proxy
+        """
+        if self._query is None:
+            self._query = self.get_proxy('IceGrid/Query')
+        if getattr(proxy, '_replicas', None) is None:
+            proxy._replicas = [proxy.uncheckedCast(p) for p in self._query.findAllReplicas(proxy)]
+        return proxy._replicas
 
     def serve(self):
         """Activates all adapters then waits for the shutdown signal."""
