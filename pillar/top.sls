@@ -1,7 +1,7 @@
 base:
   '*':
     - passwords
-  'icebox-1':
+  'icebox-*':
     - platform.dev
-  'icebox-4':
+  'icenode-*':
     - platform.local

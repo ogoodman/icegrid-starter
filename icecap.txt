@@ -138,11 +138,6 @@ To reload the application:
 
 TODO:
 
-Make it possible to view the node logs via the gui tool
-
-Copy the gui tool into the /vagrant shared folder and document it in
-the readme file.
-
 --
 
 How do we generate grid.xml?
@@ -208,6 +203,77 @@ server and add links there.
 Could probably eliminate local and put all vagrant stuff in the one
 Vagrantfile. (Start by getting rid of install_salt.sh.)
 
+Hmm. It seems like I could do this in git by having an infrastructure
+branch while having the main project in master. Or even having
+infrastructure be a project from which demo and icecap both pull.
+I am sure there would be problems with this.
+
+Other things I could configure
+------------------------------
+
+Source control, bug tracking and developer wiki are commonly handled
+externally. It would be possible to add Salt files for setting up
+Trac though. Are there any other free options here?
+
+The customer payments/billing system should be outsourced for startups.
+(I might want to look at this for myself at some point.)
+
+What about a public website? Well that's really as simple as
+installing apache or nginx.
+
+A development website would want some simple password protection.
+It could be configured it to serve the coverage stats and source
+documentation. Of course I will already do that myself.
+
 --
 
-Work on FakeGrid and FakeEnv.
+What are the things that need to be documented? Can I use the
+technique of the document plus the train of thought about what should
+be in the document and why as a second document?
+
+I'd like a bit more explanation of the Env philosophy. I could add
+file access methods and URL retrieval. For testing a loadTestData
+method would be good. Files bring in the node-id nicely.
+
+--
+
+Current goals?
+
+Prepare it for GitHub. 
+ * Add Sphinx doc generation.
+ * GUI tool copied.
+ * Node logs visible via GUI tool.
+ * Pull code from Git repo (and set credentials to be public at GitHub).
+ * To document
+   * which parts used on master/minion, admin/app
+ * Don't bother setting up id_rsa.pub, but mention possibility.
+
+For GitHub a name like icegrid_example might pick up folks who are
+interested in using icegrid. At this point the "icegrid example"
+Google search turns up nothing at all except a handful of links to
+zeroc. The one GitHub hit turns out to be just a straight copy of the
+Ice source code.
+
+Learning Markdown would be good for GitHub readme files. Looks like
+that's the only markup language accepted there.
+
+Won't merge the two Vagrantfiles because then 'vagrant up' would
+make more images than we expect.
+
+The icecap user on the local servers should be sudo enabled without a
+password. Or maybe optionally so? That would help with reading logs.
+Of course they can administer via the vagrant user, but not so
+convenient. Well it's not really needed for login at all.
+
+It would be better if dev and local were equivalent. That means
+another host in local.sls and changing the wording in readme.txt
+slightly.
+
+Here is a Gotcha: if you make changes in the master and then deploy a
+new 'local' box before committing those changes you may end up with
+inconsistent configurations.
+
+Make it possible to view the node logs via the gui tool
+
+Copy the gui tool into the /vagrant shared folder and document it in
+the readme file.

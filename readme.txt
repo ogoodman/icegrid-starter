@@ -10,9 +10,9 @@ To use the development environment, review pillar/platform/dev.sls to
 ensure that the IPs do not conflict with any existing hosts on your
 local subnet. If they do, change them. Then do
 
-  vagrant up icebox-1
+  vagrant up
 
-in order to obtain a fully provisioned development environment.
+in order to obtain a fully provisioned two-node IceGrid grid.
 
 Local and Production
 ====================
@@ -42,7 +42,7 @@ Start the salt-master daemon (E.g. Ubuntu):
 
   sudo service salt-master start
 
-Next we need to add some minions.
+Next we need to create some minions.
 
 We will need the local IP of the salt master so that vagrant can add
 an entry for the 'salt' host to the /etc/hosts file of each VM. 
@@ -54,7 +54,7 @@ Review pillar/platform/local.sls to check that the IPs listed will not
 cause any conflicts for you. Then,
 
   cd local
-  vagrant up icebox-4
+  vagrant up
 
 to create a Salt minion. No further use is made of Vagrant in this
 environment: it is simply a convenient means to create suitable local
@@ -97,6 +97,10 @@ credentials for checking out this project:
 Finally, provision the server:
 
   sudo salt '*' state.highstate
+
+Once that completes we should be able to log into the server via
+
+  ssh icecap@icenode-1
 
 Grid Services
 =============

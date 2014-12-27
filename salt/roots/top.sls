@@ -4,4 +4,4 @@ base:
     - icecap
     - registry
     - node
-    - testing
+    - tools

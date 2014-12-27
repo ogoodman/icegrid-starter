@@ -6,6 +6,16 @@ pillar = YAML.load_file('../pillar/platform/local.sls')
 
 master_ip = File.read('master-ip')
 
+install_salt_sh = <<SCRIPT
+#!/bin/sh
+
+echo "$1 salt" >> /etc/hosts
+
+add-apt-repository -y ppa:saltstack/salt
+apt-get update
+apt-get -y install salt-minion
+SCRIPT
+
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/trusty32"
 
@@ -19,5 +29,5 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  config.vm.provision "shell", path: "install_salt.sh", args: master_ip
+  config.vm.provision "shell", inline: install_salt_sh, args: master_ip
 end

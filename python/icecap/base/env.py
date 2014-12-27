@@ -1,4 +1,4 @@
-"""The ``Env`` interface abstracts the environment for all grid participants.
+"""The *environment* interface abstracts the environment for all grid participants.
 
 An ``Env`` instance is generally created once at the top-level of any
 client or server code. It provides a single point where all environmental
@@ -7,7 +7,7 @@ dependencies can be injected.
 A ``FakeEnv`` implementing versions of all the same public methods
 can be used for testing.
 
-The ``Env`` abstraction reduces servers implementation to nothing more than
+The ``Env`` abstraction reduces server implementation to nothing more than
 a function taking an *env* object.
 
 Server example::
@@ -48,6 +48,11 @@ def toMostDerived(ob):
     return cls.uncheckedCast(ob)
 
 class Env(object):
+    """The core environment resource factory. Mediates access to all environment 
+    resources such as files, Ice connections, HTTP requests, etc.
+
+    .. note:: The current version only implements IceGrid connection methods.
+    """
     def __init__(self):
         self._ic = None
         self._adapters = {}
@@ -85,7 +90,10 @@ class Env(object):
         ic = self._communicator()
         if adapter not in self._adapters:
             self._adapters[adapter] = ic.createObjectAdapter(adapter)
-        self._adapters[adapter].add(servant, ic.stringToIdentity(name))
+        proxy = self._adapters[adapter].add(servant, ic.stringToIdentity(name))
+        s_cls = servant.ice_staticId().replace('::', '.')[1:]
+        proxy_cls = importSymbol(s_cls + 'Prx')
+        servant._proxy = proxy_cls.uncheckedCast(proxy)
 
     def replicas(self, proxy):
         """Returns a list containing all registered replicas of the proxy.
@@ -102,7 +110,16 @@ class Env(object):
         return proxy._replicas
 
     def serve(self):
-        """Activates all adapters then waits for the shutdown signal."""
+        """Activates all adapters then waits for the shutdown signal.
+
+        .. note:: This method is for server implementations only and is not
+                  part of the environment interface.
+        """
         for a in self._adapters.values():
             a.activate()
         self._communicator().waitForShutdown()
+
+    def server_id(self):
+        """Returns the ``Ice.Admin.ServerId`` property when called on a server."""
+        ic = self._communicator()
+        return ic.getProperties().getProperty('Ice.Admin.ServerId')
