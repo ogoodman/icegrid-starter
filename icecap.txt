@@ -159,27 +159,26 @@ convention and by default every service is added on all nodes.
 How does this divide up now in terms of grid infrastructure v.s. the
 beginnings of a specific application?
 
-I've got a whole python-path directory to play with.
-But anyway, unfortunately the python directory will be mixed if it has
-to contain config.py.
-
 application:
   pillar
+  scripts
   services.yml
   servers
   slice
   python
+  doc/source/contents.txt
 
 generated:
   grid
   python/icegrid_config.py
 
 infrastructure:
+  admin
   local
   salt (except id_rsa.pub)
   Makefile (could easily get polluted though)
   Vagrantfile
-  scripts (need separate for application)
+  doc/source/conf.py
 
 Ok, if we keep this separation we should always be able to provide it
 as a 'starter' project by emptying all the application directories
@@ -240,8 +239,8 @@ Prepare it for GitHub.
  * Pull code from Git repo (and set credentials to be public at GitHub).
  * To document
    * which parts used on master/minion, admin/app
+   * doc/source/contents.txt
  * Don't bother setting up id_rsa.pub, but mention possibility.
- * Fix or remove make_doc_templates.py: it will clobber headings.
 
 For GitHub a name like icegrid_example might pick up folks who are
 interested in using icegrid. At this point the "icegrid example"

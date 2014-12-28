@@ -12,7 +12,7 @@ python/%_ice.py: %.ice
 	slice2py $< --ice -Islice --output-dir python
 
 update:
-	python scripts/grid_admin.py update
+	python admin/grid_admin.py update
 
 test:
 	cd python ; nosetests

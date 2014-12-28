@@ -25,7 +25,7 @@ ice-registry:
     - require:
       - file: /etc/init/ice-registry.conf
 
-python scripts/grid_admin.py add:
+python admin/grid_admin.py add:
   cmd.run:
     - user: {{ pillar['userid'] }}
     - cwd: {{ pillar['app_root'] }}
