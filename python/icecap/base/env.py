@@ -28,7 +28,7 @@ Client example::
 import atexit
 import sys
 import Ice
-from icecap import config
+import icegrid_config
 from icecap.base.util import importSymbol
 
 def toMostDerived(ob):
@@ -64,7 +64,7 @@ class Env(object):
             self._ic = Ice.initialize(sys.argv)
             atexit.register(self._ic.destroy)
 
-            reg_proxy = self._ic.stringToProxy("IceGrid/Locator:tcp -h %s -p 4061" % config.ICE_REG_HOST)
+            reg_proxy = self._ic.stringToProxy("IceGrid/Locator:tcp -h %s -p 4061" % icegrid_config.ICE_REG_HOST)
             registry = Ice.LocatorPrx.uncheckedCast(reg_proxy)
             self._ic.setDefaultLocator(registry)
         return self._ic

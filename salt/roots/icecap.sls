@@ -43,7 +43,7 @@ subversion:
 {% endif %}
 
 # Generate the platform configuration file.
-{{ pillar['app_root'] }}/python/icecap/config.py:
+{{ pillar['app_root'] }}/python/icegrid_config.py:
   file.managed:
     - source: salt://config-tpl.py
     - user: {{ pillar['userid'] }}
@@ -71,7 +71,7 @@ make:
     - env:
       - PYTHONPATH: {{ pillar['app_root'] }}/python
     - require:
-      - file: {{ pillar['app_root'] }}/python/icecap/config.py
+      - file: {{ pillar['app_root'] }}/python/icegrid_config.py
 
 {{ pillar['data_root'] }}:
   file.directory:

@@ -1,5 +1,14 @@
 # {% set node = 'node' + grains['id'].rsplit('-')[-1] %}
 # {% set node_cfg = pillar['app_root'] + '/grid/' + node + '.cfg' %}
+# {% set client_cfg = pillar['app_root'] + '/grid/client.cfg' %}
+
+{{ client_cfg }}:
+  file.managed:
+    - source: salt://ice-client-tpl.cfg
+    - template: jinja
+    - user: {{ pillar['userid'] }}
+    - group: {{ pillar['userid'] }}
+    - makedirs: True
 
 {{ node_cfg }}:
   file.managed:

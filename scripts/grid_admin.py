@@ -49,10 +49,9 @@ import os
 import sys
 import yaml
 
-from icecap.config import ICE_REG_HOST
-from icecap.base.util import appRoot
+from icegrid_config import ICE_REG_HOST
 
-APP_ROOT = appRoot()
+APP_ROOT = os.path.abspath(__file__).rsplit('/', 2)[0]
 PLATFORM_SLS = os.path.join(APP_ROOT, 'pillar/platform')
 GRID_XML_PATH = os.path.join(APP_ROOT, 'grid/grid.xml')
 CLIENT_CFG = os.path.join(APP_ROOT, 'grid/client.cfg')

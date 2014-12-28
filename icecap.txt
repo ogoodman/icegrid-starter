@@ -159,11 +159,6 @@ convention and by default every service is added on all nodes.
 How does this divide up now in terms of grid infrastructure v.s. the
 beginnings of a specific application?
 
-make_config.py # 
-config.py
-  Is used by make_config.py and grid_admin.py.
-  Those are infra.
-
 I've got a whole python-path directory to play with.
 But anyway, unfortunately the python directory will be mixed if it has
 to contain config.py.
@@ -177,7 +172,7 @@ application:
 
 generated:
   grid
-  python/icecap/config.py
+  python/icegrid_config.py
 
 infrastructure:
   local
@@ -240,13 +235,13 @@ method would be good. Files bring in the node-id nicely.
 Current goals?
 
 Prepare it for GitHub. 
- * Add Sphinx doc generation.
  * GUI tool copied.
  * Node logs visible via GUI tool.
  * Pull code from Git repo (and set credentials to be public at GitHub).
  * To document
    * which parts used on master/minion, admin/app
  * Don't bother setting up id_rsa.pub, but mention possibility.
+ * Fix or remove make_doc_templates.py: it will clobber headings.
 
 For GitHub a name like icegrid_example might pick up folks who are
 interested in using icegrid. At this point the "icegrid example"
@@ -277,3 +272,5 @@ Make it possible to view the node logs via the gui tool
 
 Copy the gui tool into the /vagrant shared folder and document it in
 the readme file.
+
+Move the other admin scripts to admin.
