@@ -20,3 +20,7 @@ test:
 test-coverage:
 	mkdir -p python/coverage
 	cd python ; nosetests --with-coverage --cover-erase --cover-inclusive --cover-tests --cover-package=icecap --cover-html --cover-html-dir=coverage
+
+html:
+	python scripts/make_doc_templates.py
+	make -C doc html

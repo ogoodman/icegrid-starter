@@ -1,0 +1,17 @@
+# Defines titles for Sphinx module documentation
+
+project IceCap
+author Oliver Goodman
+year 2014
+
+icecap.base Basic infrastructure
+icecap.base.env Environment resource factory
+icecap.base.master Master-slave election
+icecap.base.util Basic utilities
+
+icecap.servers Server implementations
+icecap.servers.printer A simple demo server
+
+icecap.testing Test infrastructure
+icecap.testing.fake_grid Fake grid and resource factory
+

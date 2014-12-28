@@ -1,10 +1,14 @@
 import os
-from icecap.base.util import appRoot
+
+APP_ROOT = os.path.abspath(__file__).rsplit('/', 2)[0]
+MOD_ROOT = os.path.join(APP_ROOT, 'python')
+DOC_ROOT = os.path.join(APP_ROOT, 'doc/source')
+CONTENTS = os.path.join(APP_ROOT, 'doc/contents.txt')
 
 INDEX_RST = """\
-.. IceCap documentation master file
+.. %s documentation master file
 
-Welcome to IceCap's documentation
+Welcome to %s's documentation
 =================================
 
 Contents:
@@ -22,10 +26,9 @@ Indices and tables
 """
 
 PACKAGE_RST = """\
-.. IceCap documentation
+.. %s documentation
 
-%s - Another great package
-%s========================
+%s
 
 Contents:
 
@@ -35,10 +38,9 @@ Contents:
 %s"""
 
 MODULE_RST = """\
-.. IceCap documentation
+.. %s documentation
 
-%s - Another great module
-%s=======================
+%s
 
 .. automodule:: %s
    :members:
@@ -46,13 +48,8 @@ MODULE_RST = """\
    :inherited-members:
 """
 
-MOD_ROOT = os.path.join(appRoot(), 'python/icecap')
-DOC_ROOT = os.path.join(appRoot(), 'doc/source')
-
-EXCLUDE = ['icecap.config']
-
 def allModules():
-    pre_len = len(MOD_ROOT) - len('icecap')
+    pre_len = len(MOD_ROOT) + 1
     for path, dirs, files in os.walk(MOD_ROOT):
         for d in list(dirs):
             if d.startswith('.'):
@@ -61,18 +58,31 @@ def allModules():
             continue
         for f in files:
             if f.endswith('.py') and f != '__init__.py' and not f.endswith('_test.py'):
-                yield os.path.join(path, f)[pre_len:]
+                yield os.path.join(path, f)[pre_len:-3].replace('/', '.')
 
 def main():
+    if not os.path.exists(CONTENTS):
+        return
+    contents = {}
+    for l in open(CONTENTS):
+        l = l.strip()
+        if l.startswith('#') or l == '':
+            continue
+        mod, title = l.split(None, 1)
+        contents[mod] = title
+
+    project = contents.pop('project')
+
     mods = {}
-    for f in allModules():
-        mod = f[:-3].replace('/', '.')
-        if mod in EXCLUDE:
+    for mod in allModules():
+        if mod not in contents:
             continue
         mods[mod] = None
         while '.' in mod:
             cmod = mod
             mod = mod.rsplit('.', 1)[0]
+            if '.' not in mod:
+                mod = 'index'
             if mod not in mods:
                 mods[mod] = set()
             mods[mod].add(cmod)
@@ -80,21 +90,28 @@ def main():
     for mod, cmods in mods.iteritems():
         if cmods is not None:
             cmod_lines = ''.join(['   %s\n' % cmod for cmod in sorted(cmods)])
-        if mod == 'icecap':
-            outfile = 'index.rst'
-            out = INDEX_RST % cmod_lines
+        if mod != 'index':
+            title = mod + ' - ' + contents[mod]
+            title_lines = '%s\n%s' % (title, '=' * len(title))
+        if mod == 'index':
+            out = INDEX_RST % (project, project, cmod_lines)
         elif cmods is not None:
-            outfile = mod + '.rst'
-            out = PACKAGE_RST % (mod, '='*len(mod), cmod_lines)
+            out = PACKAGE_RST % (project, title_lines, cmod_lines)
         else:
-            outfile = mod + '.rst'
-            out = MODULE_RST % (mod, '='*len(mod), mod)
+            out = MODULE_RST % (project, title_lines, mod)
 
+        outfile = mod + '.rst'
         outpath = os.path.join(DOC_ROOT, outfile)
-        if not os.path.exists(outpath) or cmods is not None:
+        if os.path.exists(outpath):
+            original = open(outpath).read()
+        else:
+            original = ''
+        if original != out:
             with open(outpath, 'w') as fh:
                 fh.write(out)
-            print 'Added', outfile #, 'module' if cmods is None else 'package'
+            print 'Updated', outfile
+        else:
+            print 'Unchanged', outfile
 
 if __name__ == '__main__':
     main()
