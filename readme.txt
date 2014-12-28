@@ -79,13 +79,6 @@ allows them all to connect. To check the connection, do:
 
   sudo salt '*' test.ping
 
-In order to provision our servers (local or otherwise) we must provide
-a little more configuration detail.
-
-So that we can log into our servers:
-
-  cp ~/.ssh/id_rsa.pub salt/roots
-
 To authorize them to pull the application source code from our
 repository, create the file pillar/passwords.sls containing svn
 credentials for checking out this project:
@@ -98,9 +91,11 @@ Finally, provision the server:
 
   sudo salt '*' state.highstate
 
-Once that completes we should be able to log into the server via
+If you want to be able to log into the local servers using your SSH
+key, do
 
-  ssh icecap@icenode-1
+  cp ~/.ssh/id_rsa.pub salt/roots
+  sudo salt '*' state.sls add_key
 
 Grid Services
 =============

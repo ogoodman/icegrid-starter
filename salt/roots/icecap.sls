@@ -6,14 +6,6 @@
     - uid: 1010
     - home: /home/{{ pillar['userid'] }}
     - shell: /bin/bash
-
-# Add an authorized key.
-icecap_ssh:
-  ssh_auth.present:
-    - user: {{ pillar['userid'] }}
-    - source: salt://id_rsa.pub
-    - require:
-      - user: {{ pillar['userid'] }}
 {% endif %}
 
 # Check the source code out if necessary.

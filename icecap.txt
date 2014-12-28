@@ -124,7 +124,6 @@ configuration to be used.
 User provides:
 
   pillar/passwords.sls
-  salt/roots/id_rsa.pub
   local/master-ip
 
 The upstart configs for Vagrant dev boxes need to start grid services
@@ -140,7 +139,7 @@ TODO:
 
 --
 
-How do we generate grid.xml?
+Adding services to the grid
 
 The hosts are listed in dev.sls and local.sls. If we want to generate
 an app for all of them we need to load both. So what would work would
@@ -184,10 +183,7 @@ Ok, if we keep this separation we should always be able to provide it
 as a 'starter' project by emptying all the application directories
 or replacing them all with a baby demo example.
 
-To make the separation as complete as possible we should move the two
-infrastructure scripts to an admin/ directory and generate a
-grid_config.py file instead of config.py. The Makefile is
-infrastructure now but that could easily change.
+The Makefile is infrastructure now but that could easily change.
 
 We could separate even better with symlinks but then it would be
 harder to do an svn checkout on the production server.
@@ -195,7 +191,7 @@ I suppose we could check both projects out on the production
 server and add links there.
 
 Could probably eliminate local and put all vagrant stuff in the one
-Vagrantfile. (Start by getting rid of install_salt.sh.)
+Vagrantfile.
 
 Hmm. It seems like I could do this in git by having an infrastructure
 branch while having the main project in master. Or even having
@@ -240,7 +236,6 @@ Prepare it for GitHub.
  * To document
    * which parts used on master/minion, admin/app
    * doc/source/contents.txt
- * Don't bother setting up id_rsa.pub, but mention possibility.
 
 For GitHub a name like icegrid_example might pick up folks who are
 interested in using icegrid. At this point the "icegrid example"
