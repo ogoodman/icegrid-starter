@@ -4,12 +4,10 @@
 require 'yaml'
 pillar = YAML.load_file('../pillar/platform/local.sls')
 
-master_ip = File.read('master-ip')
-
 install_salt_sh = <<SCRIPT
 #!/bin/sh
 
-echo "$1 salt" >> /etc/hosts
+echo "10.0.2.2 salt" >> /etc/hosts
 
 add-apt-repository -y ppa:saltstack/salt
 apt-get update
@@ -29,5 +27,5 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  config.vm.provision "shell", inline: install_salt_sh, args: master_ip
+  config.vm.provision "shell", inline: install_salt_sh
 end

@@ -82,13 +82,8 @@ Start the `salt-master` daemon (E.g. Ubuntu):
 
 Next we need to create some minions.
 
-We will need the local IP of the salt master so that vagrant can add
-an entry for the `salt` host to the `/etc/hosts` file of each VM. 
-(Use `ifconfig` to get your local network IP.)
-
-    echo [your-ip] > local/master-ip
-
-Review `pillar/platform/local.sls` to check that the IPs listed will not cause any conflicts for you. Then,
+Review `pillar/platform/local.sls` to check that the IPs listed will
+not cause any conflicts for you. Then,
 
     cd local
     vagrant up
@@ -115,14 +110,6 @@ at our master.
 allows them all to connect. To check the connection, do:
 
     sudo salt '*' test.ping
-
-To authorize them to pull the application source code from our
-repository, create the file `pillar/passwords.sls` containing svn
-credentials for checking out this project:
-
-    icecap_svn_repo: http://<svn-host>/svn/Projects/icecap
-    icecap_svn_user: <svn-user>
-    icecap_svn_password: <svn-password>
 
 Finally, provision the server:
 

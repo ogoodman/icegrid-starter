@@ -1,34 +1,51 @@
-# Ensure the icecap user is present.
 {% if pillar['userid'] != 'vagrant' %}
+# Make a user to run IceGrid services.
 {{ pillar['userid'] }}:
   user.present:
-    - fullname: IceCap user
+    - fullname: IceGrid user
     - uid: 1010
     - home: /home/{{ pillar['userid'] }}
     - shell: /bin/bash
 {% endif %}
 
 # Check the source code out if necessary.
-{% if pillar['svn_checkout'] %}
+
+{% if 'svn_repo' in pillar %}
+# Check the source out using svn.
 subversion:
   pkg.installed
 
-{% if 'icecap_svn_host' in pillar %}
-{{ pillar['icecap_svn_host']['name'] }}:
+{% if 'svn_host' in pillar %}
+{{ pillar['svn_host']['name'] }}:
   host.present:
-    - ip: {{ pillar['icecap_svn_host']['ip'] }}
+    - ip: {{ pillar['svn_host']['ip'] }}
 {% endif %}
 
-{{ pillar['icecap_svn_repo'] }}:
+{{ pillar['svn_repo'] }}:
   svn.latest:
     - target: {{ pillar['app_root'] }}
     - user: {{ pillar['userid'] }}
-    - username: {{ pillar['icecap_svn_user'] }}
-    - password: {{ pillar['icecap_svn_password'] }}
+    - username: {{ pillar['svn_user'] }}
+    - password: {{ pillar['svn_password'] }}
     - require:
-{% if 'icecap_svn_host' in pillar %}
-      - host: {{ pillar['icecap_svn_host']['name'] }}
+{% if 'svn_host' in pillar %}
+      - host: {{ pillar['svn_host']['name'] }}
 {% endif %}
+{% if pillar['userid'] != 'vagrant' %}
+      - user: {{ pillar['userid'] }}
+{% endif %}
+
+{% elif 'git_repo' in pillar %}
+# Check the source out using git
+git:
+  pkg.installed
+
+{{ pillar['git_repo'] }}:
+  git.latest:
+    - target: {{ pillar['app_root'] }}
+    - user: {{ pillar['userid'] }}
+    - require:
+      - pkg: git
 {% if pillar['userid'] != 'vagrant' %}
       - user: {{ pillar['userid'] }}
 {% endif %}
@@ -41,9 +58,12 @@ subversion:
     - user: {{ pillar['userid'] }}
     - group: {{ pillar['userid'] }}
     - template: jinja
-{% if 'icecap_svn_host' in pillar %}
+{% if 'svn_repo' in pillar %}
     - require:
-      - svn: {{ pillar['icecap_svn_repo'] }}
+      - svn: {{ pillar['svn_repo'] }}
+{% elif 'git_repo' in pillar %}
+    - require:
+      - git: {{ pillar['git_repo'] }}
 {% endif %}
 
 # Set PYTHONPATH to the app_root/python directory.
