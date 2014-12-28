@@ -88,9 +88,9 @@ not cause any conflicts for you. Then,
     cd local
     vagrant up
 
-to create a Salt minion. No further use is made of Vagrant in this
+to create two Salt minions. No further use is made of Vagrant in this
 environment: it is simply a convenient means to create suitable local
-VM images. 
+VM images.
 
 For production deployments you must set up some hosts, provisioned as
 Salt minions, and point them at the salt master. The Salt
@@ -98,7 +98,7 @@ configuration management abstraction ensures that there should be no
 difference between administering the local environment or the
 production one.
 
-We connect the minion(s) with our master:
+We connect the minions with our master:
 
     sudo salt-key -L
 
@@ -107,7 +107,7 @@ at our master.
 
     sudo salt-key -A
 
-allows them all to connect. To check the connection, do:
+allows them to connect. To check the connection, do:
 
     sudo salt '*' test.ping
 

@@ -121,11 +121,6 @@ Configuration needed for both deployment and runtime configuration
 should all come from the Salt pillar, i.e. from the first
 configuration to be used.
 
-User provides:
-
-  pillar/passwords.sls
-  local/master-ip
-
 The upstart configs for Vagrant dev boxes need to start grid services
 after the /vagrant volume is mounted. This explains how:
 
@@ -227,10 +222,23 @@ method would be good. Files bring in the node-id nicely.
 
 --
 
+Won't merge the two Vagrantfiles because then 'vagrant up' would
+make more images than we expect.
+
+The icecap user on the local servers should be sudo enabled without a
+password. Or maybe optionally so?
+Of course they can administer via the vagrant user, but not so
+convenient. Well it's not really needed for login at all.
+
+Here is a Gotcha: if you make changes in the master and then deploy a
+new 'local' box before committing those changes you may end up with
+inconsistent configurations.
+
+--
+
 Current goals?
 
 Prepare it for GitHub. 
- * Pull code from Git repo (and set credentials to be public at GitHub).
  * To document
    * which parts used on master/minion, admin/app
    * sphinx: doc/source/contents.txt
@@ -246,18 +254,33 @@ Google search turns up nothing at all except a handful of links to
 zeroc. The one GitHub hit turns out to be just a straight copy of the
 Ice source code.
 
-Won't merge the two Vagrantfiles because then 'vagrant up' would
-make more images than we expect.
+What I want to make is an icegrid-starter project in which the icecap
+project has been renamed to iceapp and stripped back to bare basics
+raw Ice stuff, no wrapping.
 
-The icecap user on the local servers should be sudo enabled without a
-password. Or maybe optionally so?
-Of course they can administer via the vagrant user, but not so
-convenient. Well it's not really needed for login at all.
+Then I also want to make fork of it called icecap.
 
-It would be better if dev and local had the same number of nodes. That
-means another host in local.sls and changing the wording in readme.txt
-slightly.
 
-Here is a Gotcha: if you make changes in the master and then deploy a
-new 'local' box before committing those changes you may end up with
-inconsistent configurations.
+So, what I'd like is a project with an infrastructure branch and a
+master branch. Whenever I make infrastructure changes I commit them on
+the infrastructure branch and then merge it into the master branch.
+That would enable me to retain the value of the icegrid-starter.
+Now, assuming I can do this, can I also have the icegrid-starter project
+use infrastructure as its origin.
+
+To avoid interference between very simple demo updates and the icecap
+project, I want both of them to branch from the empty starter, call it
+base. So we'll have icegrid-starter, base and master which is icecap.
+Then we'll clone from that on github.
+
+Steps:
+1. export svn into new icecap repo.
+2. remove all the application files and directories.
+3. commit as 'Adds base infrastructure.'
+4. put all the icecap stuff in
+5. commit as 'Adds icecap project.'
+6. check out the first commit as branch 'icegrid-starter'
+7. put the very basic grid demo in.
+8. commit as 'Adds basic demo code.'
+9. check out the first commit as branch 'base'
+10. push all that to github.
