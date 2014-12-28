@@ -3,7 +3,7 @@ VPATH=slice grid
 SLICE_FILES:=$(wildcard slice/*.ice)
 SLICE_TARGETS=$(SLICE_FILES:slice/%.ice=python/%_ice.py)
 
-all: slice
+all: slice icegridgui
 
 # Creates slice generated python files and packages.
 slice: $(SLICE_TARGETS)
@@ -23,3 +23,8 @@ test-coverage:
 
 html:
 	make -C doc html
+
+icegridgui: IceGridGUI-3.5.1.jar
+
+IceGridGUI-3.5.1.jar:
+	cp /usr/share/java/IceGridGUI-3.5.1.jar . || touch $@

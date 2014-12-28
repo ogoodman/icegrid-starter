@@ -5,6 +5,8 @@ env = Env()
 
 printer = env.get_proxy('printer@PrinterGroup')
 
+printer.printString('Hello!')
+
 n = 42
 nn = printer.addOne(n)
 print '%s + 1 = %s' % (n, nn)

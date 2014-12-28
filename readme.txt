@@ -1,6 +1,6 @@
 This project shows how to develop and deploy an IceGrid application.
 
-There are two environments, a development environment hosted by
+There are two environments, a development environment managed by
 Vagrant, and a local production-like environment.
 
 Development
@@ -13,6 +13,42 @@ local subnet. If they do, change them. Then do
   vagrant up
 
 in order to obtain a fully provisioned two-node IceGrid grid.
+
+The GUI admin tool
+==================
+
+IceGrid comes with a nice graphical user interface for inspecting and
+managing your grid. See:
+
+  http://doc.zeroc.com/display/Ice/Getting+Started+with+IceGrid+Admin
+
+for full details.
+
+The development provisioning process will copy this tool
+(IceGridGUI-3.5.1.jar) into the project root. From there you should be
+able to run it via:
+
+  java -jar IceGridGUI-3.5.1.jar &
+
+To connect with your registry:
+
+ * Choose File > Login.. (or click on the icon with the green up-arrow)
+ * Click on 'New Connection'
+ * Choose 'Direct'
+ * Enter an instance name of 'IceGrid'
+ * Choose 'hostname and port number' for the addressing information
+ * Enter your registry IP (the default is 192.168.1.101 if you didn't 
+   have to change it).
+ * Enter 'x' for the username (password checking is off) and click finish.
+ * Click OK on the login dialog, and you should be connected.
+
+The tool saves your connection details so the process is a bit quicker
+the next time around.
+
+You can use the node context-menu items 'Retrieve stdout' and
+'Retrieve stderr' to view all server output.
+
+NOTE: due to buffering 'stdout' output is not always visible immediately.
 
 Local and Production
 ====================
@@ -112,4 +148,3 @@ or (for production-like servers)
 Similarly icegridnode is installed as upstart service ice-node on all
 nodes.
 
-Node logs currently go to /var/log/upstart/ice-node.log on each host.

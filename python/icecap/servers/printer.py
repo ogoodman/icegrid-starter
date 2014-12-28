@@ -1,3 +1,4 @@
+import sys
 import random
 from icecap import idemo
 from icecap.base.master import MasterInfo
@@ -32,13 +33,13 @@ class Printer(idemo.Printer):
     def printString(self, s, curr=None):
         """Print *s* to standard output.
 
-        .. note:: when called on a server you will have to locate the Ice node
-                  log to see the output. Currently this is at 
-                  ``/var/log/upstart/ice-node.log``.
+        .. note:: You should be able to see this using the 'Retrieve stdout'
+                  *node context-menu item* in the IceGridGUI tool.
 
         :param s: the string to print
         """
         print s
+        sys.stdout.flush()
 
     def addOne(self, n, curr=None):
         """Adds one to *n* and returns it.
