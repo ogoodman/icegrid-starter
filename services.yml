@@ -1,0 +1,6 @@
+application: IceApp
+
+services:
+  - name: Printer
+    run: servers/demo_server.py
+    replicated: false
