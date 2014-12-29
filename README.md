@@ -7,7 +7,7 @@ There are two environments: a development environment managed by
 Vagrant, and a local production-like environment.
 
 Development
-===========
+-----------
 
 To use the development environment, review `pillar/platform/dev.sls` to
 ensure that the IPs do not conflict with any existing hosts on your
@@ -18,7 +18,7 @@ local subnet. If they do, change them. Then do
 in order to obtain a fully provisioned and running two-node grid.
 
 The GUI admin tool
-==================
+------------------
 
 IceGrid comes with a nice graphical user interface for inspecting and
 managing your grid. See:
@@ -51,16 +51,17 @@ You can use the node context-menu items 'Retrieve stdout' and
 NOTE: due to buffering `stdout` output is not always visible immediately.
 
 Running the demo
-================
+----------------
 
-Use `vagrant ssh icedev-1` to log into one of the VMs. Running
+Use `vagrant ssh icedev-1` to log into one of the development hosts. Running
 
+    cd /vagrant
     python scripts/demo_client.py
 
 should cause a message to appear in the `stdout` log of one of the nodes.
 
 Project contents
-================
+----------------
 
 In the `/vagrant` directory, which is just the project source shared
 with the host, you will find
@@ -85,7 +86,7 @@ There is also a `Makefile` providing the following targets:
 * `make test-coverage` - Generates a coverage report under `python/coverage`
 
 Application configuration
-=========================
+-------------------------
 
 The admin script `admin/grid_admin.py` processes `services.yml` and
 any `.sls` files found under `pillar/platform`. It generates
@@ -121,7 +122,7 @@ explicitly.
           - node1
 
 Local and Production
-====================
+--------------------
 
 To use the local production-like environment, a few steps are
 necessary.
@@ -186,7 +187,7 @@ user, using your own public SSH key, do
     sudo salt '*' state.sls add_key
 
 Grid Services
-=============
+-------------
 
 The icegridregistry is installed as upstart service `ice-registry` on
 the registry host. It starts automatically but it can be controlled via
