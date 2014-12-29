@@ -1,0 +1,14 @@
+# base ignore patterns
+*.pyc
+*.slsc
+/.vagrant
+/doc/build
+/doc/source/*.rst
+/grid
+/pillar/optional.sls
+/python/coverage
+/python/.coverage
+/python/*_ice.py
+/python/icegrid_config.py
+/IceGridGUI-3.5.1.jar
+
