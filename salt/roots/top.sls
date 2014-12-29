@@ -1,7 +1,7 @@
 base:
   '*':
     - ice
-    - icecap
+    - build
     - registry
     - node
     - tools

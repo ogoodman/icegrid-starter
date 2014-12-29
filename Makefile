@@ -14,13 +14,6 @@ python/%_ice.py: %.ice
 update:
 	python admin/grid_admin.py update
 
-test:
-	cd python ; nosetests
-
-test-coverage:
-	mkdir -p python/coverage
-	cd python ; nosetests --with-coverage --cover-erase --cover-inclusive --cover-tests --cover-package=icecap --cover-html --cover-html-dir=coverage
-
 html:
 	make -C doc html
 
@@ -28,3 +21,13 @@ icegridgui: IceGridGUI-3.5.1.jar
 
 IceGridGUI-3.5.1.jar:
 	cp /usr/share/java/IceGridGUI-3.5.1.jar . || touch $@
+
+test:
+	cd python ; nosetests
+
+PACKAGES:=$(wildcard python/*/__init__.py)
+COVER_PACKAGES:=$(PACKAGES:python/%/__init__.py=--cover-package=%)
+
+test-coverage:
+	mkdir -p python/coverage
+	cd python ; nosetests --with-coverage --cover-erase --cover-inclusive --cover-tests --cover-html --cover-html-dir=coverage $(COVER_PACKAGES)

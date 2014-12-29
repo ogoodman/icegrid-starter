@@ -1,5 +1,5 @@
 base:
-  'icebox-*':
+  'icedev-*':
     - platform.dev
   'icenode-*':
     - platform.local

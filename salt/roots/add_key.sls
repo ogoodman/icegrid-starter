@@ -5,7 +5,7 @@
 # and then do
 #   salt '*' state.sls add_key
 #
-icecap_ssh:
+local_ssh:
   ssh_auth.present:
     - user: {{ pillar['userid'] }}
     - source: salt://id_rsa.pub
