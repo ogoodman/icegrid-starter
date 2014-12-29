@@ -50,6 +50,76 @@ You can use the node context-menu items 'Retrieve stdout' and
 
 NOTE: due to buffering `stdout` output is not always visible immediately.
 
+Running the demo
+================
+
+Use `vagrant ssh icedev-1` to log into one of the VMs. Running
+
+    python scripts/demo_client.py
+
+should cause a message to appear in the `stdout` log of one of the nodes.
+
+Project contents
+================
+
+In the `/vagrant` directory, which is just the project source shared
+with the host, you will find
+
+* `admin` - contains `grid_admin.py` which you can use to add, update
+            or remove your application
+* `doc` - Sphinx API documentation generator. You can update
+            `doc/source/contents.txt` to control which modules are documented.
+* `grid` - Generated files required to configure the registry and nodes
+* `local` - Home of the local *production-like* environment (see below)
+* `pillar`, `salt` - Salt deployment configuration
+* `python`, `servers` and `scripts` - The application code
+* `slice` - Ice interface definitions required by the application
+* `services.yml` - Grid configuration: which servers go where
+
+There is also a `Makefile` providing the following targets:
+
+* `make slice` - Compiles the interface definitions
+* `make update` - Updates the running grid configuration (via `grid_admin.py`)
+* `make html` - Builds the API documentation under `doc/build/html`
+* `make test` - Runs the unit tests using `nosetests`
+* `make test-coverage` - Generates a coverage report under `python/coverage`
+
+Application configuration
+=========================
+
+The admin script `admin/grid_admin.py` processes `services.yml` and
+any `.sls` files found under `pillar/platform`. It generates
+`grid/grid.xml`, the format of which is explained in the Ice
+documentation, here
+http://doc.zeroc.com/display/Ice/Using+IceGrid+Deployment and here
+http://doc.zeroc.com/display/Ice/IceGrid+XML+Reference.
+Most of the available flexibility is ignored for this starter application.
+
+From a server's name, the admin script generates non-replicated adapters of the form
+`<name>-node<n>.<name>` and replicated adapters of the form
+`<name>Group`.
+
+It will also generate both for one server if you specify `replicated: both`. 
+
+In server setup code, the adapter name is just the name itself for
+non-replicated adapters, while for replicated adapters it is
+`<name>Rep`. So `servers/demo_server.py` would need the line:
+
+    adapter = ic.createObjectAdapter('PrinterRep')
+
+If you specified `replicated: both` you will need to create two
+adapters and activate each one.
+
+If you want a server to run on only some nodes you can list them
+explicitly.
+
+    services:
+      - name: Printer
+        run: servers/demo_server.py
+        replicated: false
+        nodes:
+          - node1
+
 Local and Production
 ====================
 
@@ -90,7 +160,7 @@ to create two Salt minions. No further use is made of Vagrant in this
 environment: it is simply a convenient means to create suitable local
 VM images.
 
-For production deployments you must set up some hosts, provisioned as
+For production deployments you must set up some hosts provisioned as
 Salt minions, and point them at the salt master. The Salt
 configuration management abstraction ensures that there should be no
 difference between administering the local environment or the
@@ -105,16 +175,12 @@ at our master.
 
     sudo salt-key -A
 
-allows them to connect. To check the connection, do:
-
-    sudo salt '*' test.ping
-
-Finally, provision the server:
+allows them to connect. Finally, provision the server:
 
     sudo salt '*' state.highstate
 
-If you want to be able to log into the local servers using your SSH
-key, do
+If you want to be able to log into the local servers as the `iceapp`
+user, using your own public SSH key, do
 
     cp ~/.ssh/id_rsa.pub salt/roots
     sudo salt '*' state.sls add_key
@@ -123,7 +189,7 @@ Grid Services
 =============
 
 The icegridregistry is installed as upstart service `ice-registry` on
-`icebox-1`. It starts automatically but it can be controlled via
+the registry host. It starts automatically but it can be controlled via
 
     sudo service ice-registry [start|stop|status]
 
