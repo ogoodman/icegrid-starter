@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
-"""Script to add, update, list or remove the IceCap grid application.
+"""Script to add, update, list or remove the grid application.
 
 Usage::
 
     grid_admin.py [add|update|list|remove|show-xml]
 
-* add: adds or updates the IceCap application
+* add: adds or updates the grid application
 * update: updates the application (assumes it is already loaded)
-* list: lists all loaded applications (normally IceCap or nothing)
-* remove: removes the IceCap application
+* list: lists all loaded applications
+* remove: removes the grid application
 * show-xml: shows the generated XML without updating anything
 
 The application configuration is generated from from ``services.yml``
@@ -17,7 +17,7 @@ and ``piller/platform/*.sls``.
 
 Each service corresponds to an executable Ice server. The ``services.yml``
 file should have a ``services`` entry whose value is a list of service
-descriptions.
+descriptions, and an ``application`` entry whose value is the application name.
 
 Each service must define (string) values for the following keys:
 
@@ -56,11 +56,14 @@ PLATFORM_SLS = os.path.join(APP_ROOT, 'pillar/platform')
 GRID_XML_PATH = os.path.join(APP_ROOT, 'grid/grid.xml')
 CLIENT_CFG = os.path.join(APP_ROOT, 'grid/client.cfg')
 
+SERVICE_CONF = yaml.load(open(os.path.join(APP_ROOT, 'services.yml')))
+APP_NAME = SERVICE_CONF['application']
+
 ADMIN_CMD = "icegridadmin --Ice.Config=%s -ux -px -e '%%s'" % CLIENT_CFG
 
 APP_FRAG = """\
 <icegrid>
-  <application name="IceCap">
+  <application name="%s">
 %s%s  </application>
 </icegrid>
 """
@@ -113,8 +116,7 @@ def gridXML():
 
     groups_xml = []
 
-    service_conf = yaml.load(open(os.path.join(APP_ROOT, 'services.yml')))
-    services = service_conf['services']
+    services = SERVICE_CONF['services']
     for service in services:
         args = service.get('args', [])
         if isinstance(args, basestring):
@@ -151,7 +153,7 @@ def gridXML():
             server_xml.append(SERVER_FRAG % service)
         node_xml.append(NODE_FRAG % (node, ''.join(server_xml)))
 
-    return APP_FRAG % (''.join(groups_xml), ''.join(node_xml))
+    return APP_FRAG % (APP_NAME, ''.join(groups_xml), ''.join(node_xml))
 
 def writeGridXML():
     xml = gridXML()
@@ -161,7 +163,7 @@ def writeGridXML():
 def main():
     if 'add' in sys.argv[1:]:
         apps = [l.strip() for l in queryAdmin('application list')]
-        what = 'update' if 'IceCap' in apps else 'add'
+        what = 'update' if APP_NAME in apps else 'add'
         writeGridXML()
         doAdmin('application %s %s' % (what, GRID_XML_PATH))
     elif 'update' in sys.argv[1:]:
@@ -171,7 +173,7 @@ def main():
         for l in queryAdmin('application list'):
             print l.strip()
     elif 'remove' in sys.argv[1:]:
-        doAdmin('application remove IceCap')
+        doAdmin('application remove %s' % APP_NAME)
     elif 'show-xml' in sys.argv[1:]:
         print gridXML(),
 
