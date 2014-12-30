@@ -1,6 +1,19 @@
 {% if pillar['registry'] == pillar['hosts'][grains['id']] %}
+include:
+  - build
+
 {{ pillar['data_root'] }}/registry/master:
   file.directory:
+    - user: {{ pillar['userid'] }}
+    - group: {{ pillar['userid'] }}
+    - makedirs: True
+
+# {% set client_cfg = pillar['app_root'] + '/grid/client.cfg' %}
+
+{{ client_cfg }}:
+  file.managed:
+    - source: salt://ice-client-tpl.cfg
+    - template: jinja
     - user: {{ pillar['userid'] }}
     - group: {{ pillar['userid'] }}
     - makedirs: True
@@ -33,5 +46,6 @@ python admin/grid_admin.py add:
       - PYTHONPATH: {{ pillar['app_root'] }}/python
     - require:
       - service: ice-registry
+      - sls: build
 
 {% endif %}
