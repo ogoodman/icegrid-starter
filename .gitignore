@@ -1,7 +1,7 @@
 # base ignore patterns
 *.pyc
 *.slsc
-/.vagrant
+.vagrant
 /doc/build
 /doc/source/*.rst
 /grid
@@ -10,5 +10,6 @@
 /python/.coverage
 /python/*_ice.py
 /python/icegrid_config.py
+/salt/roots/id_rsa.pub
 /IceGridGUI-3.5.1.jar
 
