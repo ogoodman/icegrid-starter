@@ -68,14 +68,13 @@ with the host, you will find
 
 * `admin` - contains `grid_admin.py` which you can use to add, update
             or remove your application
-* `doc` - Sphinx API documentation generator. You can update
-            `doc/source/contents.txt` to control which modules are documented.
+* `doc` - Sphinx API documentation generator.
 * `grid` - Generated files required to configure the registry and nodes
 * `local` - Home of the local *production-like* environment (see below)
 * `pillar`, `salt` - Salt deployment configuration
 * `python`, `servers` and `scripts` - The application code
 * `slice` - Ice interface definitions required by the application
-* `services.yml` - Grid configuration: which servers go where
+* `application.yml` - Application configuration
 
 There is also a `Makefile` providing the following targets:
 
@@ -88,7 +87,7 @@ There is also a `Makefile` providing the following targets:
 Application configuration
 -------------------------
 
-The admin script `admin/grid_admin.py` processes `services.yml` and
+The admin script `admin/grid_admin.py` processes `application.yml` and
 any `.sls` files found under `pillar/platform`. It generates
 `grid/grid.xml`, the format of which is explained in the Ice
 documentation, here
@@ -96,11 +95,13 @@ http://doc.zeroc.com/display/Ice/Using+IceGrid+Deployment and here
 http://doc.zeroc.com/display/Ice/IceGrid+XML+Reference.
 Most of the available flexibility is ignored for this starter application.
 
-From a server's name, the admin script generates non-replicated adapters of the form
-`<name>-node<n>.<name>` and replicated adapters of the form
-`<name>Group`.
+The `services` key specifies a list of servers to install.
 
-It will also generate both for one server if you specify `replicated: both`. 
+The `name` of a server determines the names of its object adapters as
+follows: non-replicated adapters will be `<name>-node<n>.<name>` and
+replicated adapters will be `<name>Group`.
+
+To generate both for one server, specify `replicated: both`.
 
 In server setup code, the adapter name is just the name itself for
 non-replicated adapters, while for replicated adapters it is
@@ -108,8 +109,8 @@ non-replicated adapters, while for replicated adapters it is
 
     adapter = ic.createObjectAdapter('PrinterRep')
 
-If you specified `replicated: both` you will need to create two
-adapters and activate each one.
+to set up a replicated adapter. If you specify `replicated: both`
+you will need to create two adapters and activate each one.
 
 If you want a server to run on only some nodes you can list them
 explicitly.
@@ -120,6 +121,17 @@ explicitly.
         replicated: false
         nodes:
           - node1
+
+To generate Sphinx API documentation from Python docstrings,
+include an `autodoc` key whose value is the table of contents
+as a dictionary of `<modulename>: <description>` entries.
+
+    autodoc:
+      iceapp.printer: A simple Ice servant
+
+The `application`, `author` and `year` keys are also required by the
+documentation generator.
+
 
 Local and Production
 --------------------
