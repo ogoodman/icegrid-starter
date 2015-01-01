@@ -176,7 +176,7 @@ at our master.
 
     sudo salt-key -A
 
-allows them to connect. Finally, provision the server:
+allows them to connect. Finally, provision the servers:
 
     sudo salt '*' state.highstate
 

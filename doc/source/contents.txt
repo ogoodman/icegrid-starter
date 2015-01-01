@@ -1,7 +1,0 @@
-# Defines titles for Sphinx module documentation
-
-project IceApp
-author Oliver Goodman
-year 2014
-
-iceapp.printer A simple Ice servant

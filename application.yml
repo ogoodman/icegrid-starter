@@ -1,0 +1,14 @@
+# Name for grid deployment and documentation.
+application: IceApp
+
+services:
+  - name: Printer
+    run: servers/demo_server.py
+    replicated: false
+
+# Used by documentation generator
+author: Oliver Goodman
+year: 2014
+
+autodoc:
+  iceapp.printer: A simple Ice servant
