@@ -12,10 +12,10 @@ Usage::
 * remove: removes the grid application
 * show-xml: shows the generated XML without updating anything
 
-The application configuration is generated from from ``services.yml``
+The application configuration is generated from from ``application.yml``
 and ``piller/platform/*.sls``.
 
-Each service corresponds to an executable Ice server. The ``services.yml``
+Each service corresponds to an executable Ice server. The ``application.yml``
 file should have a ``services`` entry whose value is a list of service
 descriptions, and an ``application`` entry whose value is the application name.
 
@@ -56,8 +56,8 @@ PLATFORM_SLS = os.path.join(APP_ROOT, 'pillar/platform')
 GRID_XML_PATH = os.path.join(APP_ROOT, 'grid/grid.xml')
 CLIENT_CFG = os.path.join(APP_ROOT, 'grid/client.cfg')
 
-SERVICE_CONF = yaml.load(open(os.path.join(APP_ROOT, 'services.yml')))
-APP_NAME = SERVICE_CONF['application']
+APP_CONF = yaml.load(open(os.path.join(APP_ROOT, 'application.yml')))
+APP_NAME = APP_CONF['application']
 
 ADMIN_CMD = "icegridadmin --Ice.Config=%s -ux -px -e '%%s'" % CLIENT_CFG
 
@@ -116,7 +116,7 @@ def gridXML():
 
     groups_xml = []
 
-    services = SERVICE_CONF['services']
+    services = APP_CONF['services']
     for service in services:
         args = service.get('args', [])
         if isinstance(args, basestring):
