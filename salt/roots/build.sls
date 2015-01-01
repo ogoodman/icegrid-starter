@@ -3,7 +3,7 @@
 {{ pillar['userid'] }}:
   user.present:
     - fullname: IceGrid user
-    - uid: 1010
+    - uid: {{ pillar.get('uid', 1010) }}
     - home: /home/{{ pillar['userid'] }}
     - shell: /bin/bash
 {% endif %}
@@ -44,6 +44,7 @@ git:
   git.latest:
     - target: {{ pillar['app_root'] }}
     - user: {{ pillar['userid'] }}
+    - rev: {{ pillar.get('git_branch', 'master') }}
     - require:
       - pkg: git
 {% if pillar['userid'] != 'vagrant' %}
