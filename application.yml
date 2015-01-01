@@ -1,0 +1,25 @@
+# Name for grid deployment and documentation.
+application: IceCap
+
+services:
+  - name: Printer
+    setup: icecap.servers.printer.setup
+    replicated: both
+
+# Used by documentation generator
+author: Oliver Goodman
+year: 2014
+
+autodoc:
+  icecap.base: Basic infrastructure
+  icecap.base.env: Environment resource factory
+  icecap.base.master: Master-slave election
+  icecap.base.util: Basic utilities
+
+  icecap.servers: Server implementations
+  icecap.servers.printer: A simple demo server
+
+  icecap.testing: Test infrastructure
+  icecap.testing.fake_grid: Fake grid and resource factory
+
+
