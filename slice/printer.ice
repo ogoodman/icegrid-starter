@@ -1,11 +1,13 @@
+#include "base.ice"
+
 module icecap {
     module idemo {
-        interface Printer {
+
+        interface Printer extends ibase::MasterOrSlave {
             void printString(string s);
             int addOne(int n);
             int getRand();
-            bool masterPriority(out long priority);
-            string info();
+            string masterNode() throws ibase::NotMaster;
         };
     };
 };

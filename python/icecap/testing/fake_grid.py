@@ -52,6 +52,8 @@ class FakeEnv(object):
         """
         a_id = '%s.%s' % (self._server_id, adapter)
         self._grid.provide(name, a_id, servant)
+        addr = name + '@' + (adapter[:-3]+'Group' if adapter.endswith('Rep') else a_id)
+        servant._proxy = self.get_proxy(addr)
 
     def get_proxy(self, addr):
         """Obtain a proxy for a servant the shared grid.
@@ -79,12 +81,44 @@ class FakeEnv(object):
             proxy._replicas = self._grid.replicas(proxy._addr)
         return proxy._replicas
 
+    def server_id(self):
+        """Returns the server-id of this ``FakeEnv``."""
+        return self._server_id
+
 class FakeGrid(object):
     """Fake version of an IceGrid grid, for use in testing."""
 
     def __init__(self):
         self._adapters = {}
         self._groups = {}
+        self._servers = {}
+
+    def add_group_member(self, server_id):
+        """Adds this server id to the appropriate replica group.
+
+        .. note:: it does not really matter whether such a replica
+            group really exists: if it does not, servants will never
+            be provided on the required adapters so any attempt to
+            use the group will fail anyway.
+
+        :param server_id: the id of the server which might provide replicas
+        """
+        group = server_id.split('-', 1)[0]
+        adapter = '%s.%sRep' % (server_id, group)
+        if group not in self._groups:
+            self._groups[group] = [0, []]
+        grp_l = self._groups[group][1]
+        if adapter not in grp_l:
+            grp_l.append(adapter)
+
+    def add_server(self, server_id, setup_func):
+        """Sets the specified server up to start on-demand.
+
+        :param server_id: the server id of the server
+        :param setup_func: function to call when the server starts
+        """
+        self._servers[server_id] = setup_func
+        self.add_group_member(server_id)
 
     def env(self, server_id='CLIENT'):
         """Returns a ``FakeEnv`` attached to this grid.
@@ -124,6 +158,10 @@ class FakeGrid(object):
             adapter = grp_l[i % len(grp_l)]
             if step:
                 grp[0] = i + 1
+        if adapter not in self._adapters:
+            server_id = adapter.split('.', 1)[0]
+            if server_id in self._servers:
+                self._servers[server_id](self.env(server_id))
         return self._adapters[adapter][name]
 
     def provide(self, name, adapter, servant):
@@ -148,15 +186,18 @@ class FakeGrid(object):
         self._adapters[adapter][name] = servant
 
         if adapter.endswith('Rep'):
-            group = adapter[:-3].rsplit('.', 1)[-1]
-            if group not in self._groups:
-                self._groups[group] = [0, []]
-            grp_l = self._groups[group][1]
-            if adapter not in grp_l:
-                grp_l.append(adapter)
+            self.add_group_member(adapter.split('.', 1)[0])
 
     def proxy(self, addr):
         return FakeProxy(self, addr)
+
+    def remove_adapter(self, adapter):
+        """Removes the specified adapter.
+
+        :param adapter: a full server-id qualified adapter-id
+        """
+        if adapter in self._adapters:
+            del self._adapters[adapter]
 
     def replicas(self, addr):
         """Returns a list containing all registered replicas of the proxy.
@@ -171,6 +212,15 @@ class FakeGrid(object):
         adapters = self._groups.get(adapter[:-5], [0, []])[-1]
         return [self.proxy('%s@%s' % (name, a)) for a in adapters]
 
+    def stop_server(self, server_id):
+        """Removes all adapters added by the specified server.
+
+        :param server_id: the server to stop
+        """
+        a_name = server_id.split('-', 1)[0]
+        self._adapters.pop('%s.%s' % (server_id, a_name), None)
+        self._adapters.pop('%s.%sRep' % (server_id, a_name), None)
+
 ATT_ERR_MSG = "'%s' object has no attribute '%s'" 
 
 class FakeProxy(object):
@@ -180,8 +230,6 @@ class FakeProxy(object):
     :param addr: a proxy string indicating a servant
     """
     def __init__(self, grid, addr):
-        # We use double underscores to try to avoid name collisions
-        # with random servant private methods.
         self._grid = grid
         self._addr = addr
 
@@ -201,6 +249,10 @@ class FakeProxy(object):
             raise AttributeError(ATT_ERR_MSG % (type(servant), name))
 
     def _servant(self, step=True):
+        """Gets the servant to which this proxy points.
+
+        :param step: whether to step to the next servant (if replicated)
+        """
         return self._grid.get_servant(self._addr, step)
 
     def _call(self, name, *args):
@@ -224,3 +276,11 @@ class FakeProxy(object):
 
     def __repr__(self):
         return self._addr
+
+    def ice_getAdapterId(self):
+        """Gets the adapter-id part of this proxy's address.
+
+        E.g. the adapter-id of proxy ``'printer@Printer-node1.Printer'`` 
+        is ``'Printer-node1.Printer'``.
+        """
+        return self._addr.split('@', 1)[-1]

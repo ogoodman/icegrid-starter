@@ -7,7 +7,7 @@ from printer import setup as setupServer
 class PrinterTest(unittest.TestCase):
     def test(self):
         grid = FakeGrid()
-        setupServer(grid.env('Printer-node1'))
+        grid.add_server('Printer-node1', setupServer)
 
         env = grid.env()
         proxy = env.get_proxy('printer@Printer-node1.Printer')
