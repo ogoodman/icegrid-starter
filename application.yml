@@ -19,7 +19,7 @@ autodoc:
   icecap.servers: Server implementations
   icecap.servers.printer: A simple demo server
 
-  icecap.testing: Test infrastructure
-  icecap.testing.fake_grid: Fake grid and resource factory
+  icecap.ti: Test infrastructure
+  icecap.ti.fake_grid: Fake grid and resource factory
 
 

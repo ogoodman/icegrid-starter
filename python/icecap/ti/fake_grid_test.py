@@ -23,6 +23,7 @@ class FakeEnvTest(unittest.TestCase):
 
         proxy = env.get_proxy('log@Log-node1.Log')
         self.assertEqual(proxy.id(), 1)
+        self.assertEqual(env.replicas(proxy), [])
 
         env2 = grid.env('Log-node2')
 
@@ -44,7 +45,7 @@ class FakeEnvTest(unittest.TestCase):
         # Check that only methods are available on the proxy.
         self.assertRaises(AttributeError, lambda: proxy._id)
         self.assertRaises(AttributeError, lambda: proxy.fred)
-        self.assertRaises(AttributeError, lambda: proxy.begin__id)
+        self.assertRaises(AttributeError, lambda: proxy.end__id)
         self.assertRaises(AttributeError, lambda: proxy.nonMethod)
 
         # Check the async call mechanism.

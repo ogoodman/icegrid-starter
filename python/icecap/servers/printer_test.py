@@ -1,7 +1,7 @@
 import sys
 import unittest
 from icecap.base.util import grabOutput
-from icecap.testing.fake_grid import FakeGrid
+from icecap.ti.fake_grid import FakeGrid
 from printer import setup as setupServer
 
 class PrinterTest(unittest.TestCase):
@@ -12,6 +12,7 @@ class PrinterTest(unittest.TestCase):
         env = grid.env()
         proxy = env.get_proxy('printer@Printer-node1.Printer')
         self.assertEqual(proxy.addOne(5), 6)
+        self.assertEqual(proxy.serverId(), 'Printer-node1')
 
         proxy = env.get_proxy('printer@PrinterGroup')
         self.assertEqual(proxy.addOne(7), 8)

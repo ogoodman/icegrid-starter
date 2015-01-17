@@ -8,6 +8,7 @@ module icecap {
             int addOne(int n);
             int getRand();
             string masterNode() throws ibase::NotMaster;
+            string serverId();
         };
     };
 };

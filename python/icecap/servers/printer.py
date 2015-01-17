@@ -58,6 +58,9 @@ class Printer(MasterOrSlave, idemo.Printer):
         self.assertMaster()
         return self._env.server_id().rsplit('-', 1)[-1]
 
+    def serverId(self, curr=None):
+        """Returns the server-id."""
+        return self._env.server_id()
 
 def setup(env):
     """Sets up the demo ``Printer`` server by adding ``Printer`` servants to the

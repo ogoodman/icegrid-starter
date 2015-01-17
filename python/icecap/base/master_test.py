@@ -1,13 +1,13 @@
 import unittest
-from icecap.testing.fake_grid import FakeGrid
-from icecap.servers.printer import setup as server
+from icecap.ti.fake_grid import FakeGrid
+from icecap.servers import printer
 from master import mcall
 
 class MasterTest(unittest.TestCase):
     def test(self):
         grid = FakeGrid()
         for i in xrange(3):
-            grid.add_server('Printer-node%d' % i, server)
+            grid.add_server('Printer-node%d' % i, printer.setup)
 
         e = grid.env()
 
@@ -32,6 +32,10 @@ class MasterTest(unittest.TestCase):
         # The master should not have changed.
         self.assertEqual(master, mcall(e, p, 'masterNode'))
 
+        # For coverage of MasterOrSlave.findMaster.
+        mprx = mcall(e, p, 'findMaster')
+        self.assertEqual(mprx.ice_getAdapterId(), 'Printer-%s.PrinterRep' % master)
+
         # The master may change when it is stopped; keep trying until it does.
         for i in xrange(100):
             grid.stop_server('Printer-%s' % master)
@@ -46,8 +50,19 @@ class MasterTest(unittest.TestCase):
 
         # Make sure p2 tracks the change.
         self.assertEqual(new_master, mcall(e, p2, 'masterNode'))
-
         
+    def testSparse(self):
+        def badServer(env):
+            env.provide('x', 'PrinterRep', printer.Printer(env))
+
+        grid = FakeGrid()
+        grid.add_server('Printer-node1', printer.setup)
+        grid.add_server('Printer-node2', badServer)
+
+        e = grid.env()
+        p = e.get_proxy('printer@PrinterGroup')
+
+        self.assertEqual(mcall(e, p, 'masterNode'), 'node1')
 
 if __name__ == '__main__':
     unittest.main()

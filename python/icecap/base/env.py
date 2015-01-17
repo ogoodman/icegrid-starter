@@ -41,7 +41,7 @@ def toMostDerived(ob):
 
     :param ob: an Ice.ObjectPrx (in the interesting case anyway).
     """
-    if not isinstance(ob, Ice.ObjectPrx):
+    if type(ob) is not Ice.ObjectPrx:
         return ob
     cls_name = ob.ice_id().replace('::', '.')[1:] + 'Prx'
     cls = importSymbol(cls_name)

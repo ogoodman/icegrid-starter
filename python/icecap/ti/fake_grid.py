@@ -25,6 +25,8 @@ Note however that it is generally preferable to test servants in
 isolation and they should ideally be written so that this is possible.
 """
 
+import Ice
+
 class FakeEnv(object):
     """Fake version of ``icecap.base.env.Env`` for use in tests.
 
@@ -32,7 +34,7 @@ class FakeEnv(object):
     :param server_id: the id of the server (if any) that this ``FakeEnv`` emulates
     """
 
-    def __init__(self, grid, server_id='CLIENT'):
+    def __init__(self, grid, server_id=''):
         self._grid = grid
         self._server_id = server_id
 
@@ -120,7 +122,7 @@ class FakeGrid(object):
         self._servers[server_id] = setup_func
         self.add_group_member(server_id)
 
-    def env(self, server_id='CLIENT'):
+    def env(self, server_id=''):
         """Returns a ``FakeEnv`` attached to this grid.
 
         The *server_id* forms part of the fully-qualified adapter-id::
@@ -148,7 +150,7 @@ class FakeGrid(object):
             log = grid.get_servant('log@Log-node1.Log') # or
             log = grid.get_servant('log@LogGroup')
 
-        :para addr: proxy string for servant lookup
+        :param addr: proxy string for servant lookup
         """
         name, adapter = addr.split('@', 1)
         if adapter.endswith('Group'):
@@ -162,7 +164,11 @@ class FakeGrid(object):
             server_id = adapter.split('.', 1)[0]
             if server_id in self._servers:
                 self._servers[server_id](self.env(server_id))
-        return self._adapters[adapter][name]
+        ad = self._adapters[adapter]
+        try:
+            return ad[name]
+        except KeyError:
+            raise Ice.ObjectNotExistException(Ice.Identity(name))
 
     def provide(self, name, adapter, servant):
         """Put a servant onto the given adapter with the specified name.
@@ -190,14 +196,6 @@ class FakeGrid(object):
 
     def proxy(self, addr):
         return FakeProxy(self, addr)
-
-    def remove_adapter(self, adapter):
-        """Removes the specified adapter.
-
-        :param adapter: a full server-id qualified adapter-id
-        """
-        if adapter in self._adapters:
-            del self._adapters[adapter]
 
     def replicas(self, addr):
         """Returns a list containing all registered replicas of the proxy.
@@ -270,7 +268,8 @@ class FakeProxy(object):
         else:
             fname = name
             fun = lambda *args: self._call(name, *args)
-        self._check_attr(fname)
+        if not name.startswith('begin_'):
+            self._check_attr(fname)
         self.__dict__[name] = fun
         return fun
 

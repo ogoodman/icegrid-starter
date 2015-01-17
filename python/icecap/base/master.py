@@ -79,7 +79,6 @@ class MasterOrSlave(ibase.MasterOrSlave):
     information needed for a servant to manage its master/slave status.
 
     :param env: an environment
-
     """
     def __init__(self, env):
         self._env = env
