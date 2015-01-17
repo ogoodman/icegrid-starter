@@ -9,5 +9,3 @@ hosts:
 registry: 192.168.1.21
 
 app_root: /vagrant
-
-svn_checkout: false
