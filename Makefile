@@ -30,4 +30,4 @@ COVER_PACKAGES:=$(PACKAGES:python/%/__init__.py=--cover-package=%)
 
 test-coverage:
 	mkdir -p python/coverage
-	cd python ; nosetests --with-coverage --cover-erase --cover-inclusive --cover-tests --cover-html --cover-html-dir=coverage $(COVER_PACKAGES)
+	cd python ; nosetests --with-coverage --cover-erase --cover-inclusive --cover-html --cover-html-dir=coverage $(COVER_PACKAGES)
