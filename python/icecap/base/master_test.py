@@ -1,32 +1,33 @@
 import unittest
 from icecap.ti.fake_grid import FakeGrid
-from icecap.servers import printer
+from icecap.servers import demo
+from icecap.demo.printer import Printer
 from master import mcall
 
 class MasterTest(unittest.TestCase):
     def test(self):
         grid = FakeGrid()
         for i in xrange(3):
-            grid.add_server('Printer-node%d' % i, printer.setup)
+            grid.add_server('Demo-node%d' % i, demo.setup)
 
         e = grid.env()
 
         # Start a server.
-        p1 = e.get_proxy('printer@Printer-node1.Printer')
+        p1 = e.get_proxy('printer@Demo-node1.Demo')
         self.assertTrue(p1.addOne(5), 6)
 
         # The master won't always be the first started server.
-        p = e.get_proxy('printer@PrinterGroup')
+        p = e.get_proxy('printer@DemoGroup')
         master = mcall(e, p, 'masterNode')
 
         # Any other proxy should find the same master.
-        p2 = e.get_proxy('printer@PrinterGroup')
+        p2 = e.get_proxy('printer@DemoGroup')
         self.assertEqual(master, mcall(e, p2, 'masterNode'))
         
         # Stop and start a slave.
         slave = (int(master[-1]) + 1) % 3
-        grid.stop_server('Printer-node%d' % slave)
-        ps = e.get_proxy('printer@Printer-node%d.Printer' % slave)
+        grid.stop_server('Demo-node%d' % slave)
+        ps = e.get_proxy('printer@Demo-node%d.Demo' % slave)
         self.assertEqual(ps.addOne(6), 7)
 
         # The master should not have changed.
@@ -34,11 +35,11 @@ class MasterTest(unittest.TestCase):
 
         # For coverage of MasterOrSlave.findMaster.
         mprx = mcall(e, p, 'findMaster')
-        self.assertEqual(mprx.ice_getAdapterId(), 'Printer-%s.PrinterRep' % master)
+        self.assertEqual(mprx.ice_getAdapterId(), 'Demo-%s.DemoRep' % master)
 
         # The master may change when it is stopped; keep trying until it does.
         for i in xrange(100):
-            grid.stop_server('Printer-%s' % master)
+            grid.stop_server('Demo-%s' % master)
             new_master = mcall(e, p, 'masterNode')
             if new_master != master:
                 break
@@ -53,14 +54,14 @@ class MasterTest(unittest.TestCase):
         
     def testSparse(self):
         def badServer(env):
-            env.provide('x', 'PrinterRep', printer.Printer(env))
+            env.provide('x', 'DemoRep', Printer(env))
 
         grid = FakeGrid()
-        grid.add_server('Printer-node1', printer.setup)
-        grid.add_server('Printer-node2', badServer)
+        grid.add_server('Demo-node1', demo.setup)
+        grid.add_server('Demo-node2', badServer)
 
         e = grid.env()
-        p = e.get_proxy('printer@PrinterGroup')
+        p = e.get_proxy('printer@DemoGroup')
 
         self.assertEqual(mcall(e, p, 'masterNode'), 'node1')
 

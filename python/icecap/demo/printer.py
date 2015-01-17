@@ -61,13 +61,3 @@ class Printer(MasterOrSlave, idemo.Printer):
     def serverId(self, curr=None):
         """Returns the server-id."""
         return self._env.server_id()
-
-def setup(env):
-    """Sets up the demo ``Printer`` server by adding ``Printer`` servants to the
-    ``Printer`` and ``PrinterRep`` adapters.
-
-    :param env: an environment resource factory
-    """
-    env.provide('printer', 'Printer', Printer(env))
-    env.provide('printer', 'PrinterRep', Printer(env))
-

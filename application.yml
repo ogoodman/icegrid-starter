@@ -2,8 +2,8 @@
 application: IceCap
 
 services:
-  - name: Printer
-    setup: icecap.servers.printer.setup
+  - name: Demo
+    setup: icecap.servers.demo.setup
     replicated: both
 
 # Used by documentation generator
@@ -16,10 +16,8 @@ autodoc:
   icecap.base.master: Master-slave election
   icecap.base.util: Basic utilities
 
-  icecap.servers: Server implementations
-  icecap.servers.printer: A simple demo server
+  icecap.demo: Demo servants
+  icecap.demo.printer: A simple demo servant
 
   icecap.ti: Test infrastructure
   icecap.ti.fake_grid: Fake grid and resource factory
-
-

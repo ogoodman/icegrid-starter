@@ -7,7 +7,7 @@ class EnvTest(unittest.TestCase):
         env = Env()
 
         try:
-            printer = env.get_proxy('printer@PrinterGroup')
+            printer = env.get_proxy('printer@DemoGroup')
         except Ice.ConnectionRefusedException:
             print 'WARNING: test skipped, grid not running'
             return
@@ -21,7 +21,7 @@ class EnvTest(unittest.TestCase):
         self.assertEqual(len(replicas), 2)
 
         # Test 'server_id' on the server.
-        self.assertEqual(replicas[0].serverId(), 'Printer-node1')
+        self.assertEqual(replicas[0].serverId(), 'Demo-node1')
 
         self.assertEqual(toMostDerived(printer), printer)
 

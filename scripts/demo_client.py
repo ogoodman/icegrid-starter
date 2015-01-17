@@ -1,10 +1,11 @@
+import json
 from icecap.base.env import Env
 from icecap.base.util import pcall
 from icecap.base.master import mcall
 
 env = Env()
 
-printer = env.get_proxy('printer@PrinterGroup')
+printer = env.get_proxy('printer@DemoGroup')
 
 printer.printString('Hello!')
 
