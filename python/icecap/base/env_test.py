@@ -1,3 +1,4 @@
+import os
 import unittest
 import Ice
 from env import Env, toMostDerived
@@ -7,12 +8,12 @@ class EnvTest(unittest.TestCase):
         env = Env()
 
         try:
-            printer = env.get_proxy('printer@DemoGroup')
+            printer = env.getProxy('printer@DemoGroup')
         except Ice.ConnectionRefusedException:
             print 'WARNING: test skipped, grid not running'
             return
 
-        self.assertEqual(env.server_id(), '')
+        self.assertEqual(env.serverId(), '')
 
         # Tests 'provide' and 'serve' on the server.
         self.assertEqual(printer.addOne(1), 2)
@@ -24,6 +25,10 @@ class EnvTest(unittest.TestCase):
         self.assertEqual(replicas[0].serverId(), 'Demo-node1')
 
         self.assertEqual(toMostDerived(printer), printer)
+
+    def testDataDir(self):
+        env = Env()
+        self.assertTrue(os.path.isdir(env.dataDir()))
 
 if __name__ == '__main__':
     unittest.main()

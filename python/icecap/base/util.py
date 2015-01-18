@@ -32,6 +32,22 @@ def importSymbol(import_name):
     module = __import__(mod_name, fromlist = [symbol])
     return getattr(module, symbol)
 
+def openLocal(env, path, mode='r'):
+    """Opens a file in the local data directory.
+
+    Takes care of creating any directories required in the process.
+
+    :param env: the environment
+    :param path: path under the data directory
+    :param mode: mode in which to open the file
+    """
+    assert not path.startswith('/') and '..' not in path
+    f_path = os.path.join(env.dataDir(), path)
+    f_dir = os.path.dirname(f_path)
+    if not os.path.exists(f_dir):
+        os.makedirs(f_dir)
+    return open(f_path, mode)
+
 def pcall(proxies, method, *args):
     """Makes a given method call in parallel on all the supplied proxies.
 

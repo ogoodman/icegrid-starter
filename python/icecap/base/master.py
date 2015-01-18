@@ -17,7 +17,7 @@ def findLocal(env, proxy):
     :param env: environment resource factory
     :param proxy: a replica group proxy
     """
-    server_id = env.server_id()
+    server_id = env.serverId()
     proxies = env.replicas(proxy)
     local = None
     remote = []

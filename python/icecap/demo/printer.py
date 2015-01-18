@@ -23,7 +23,7 @@ class Printer(MasterOrSlave, idemo.Printer):
 
     Example::
 
-        p_prx = env.get_proxy('printer@PrinterGroup')
+        p_prx = env.getProxy('printer@PrinterGroup')
         p_prx.getRand()      # get a random number from the server
 
     :param env: an environment resource factory
@@ -56,8 +56,8 @@ class Printer(MasterOrSlave, idemo.Printer):
     def masterNode(self, curr=None):
         """Returns the master node."""
         self.assertMaster()
-        return self._env.server_id().rsplit('-', 1)[-1]
+        return self._env.serverId().rsplit('-', 1)[-1]
 
     def serverId(self, curr=None):
         """Returns the server-id."""
-        return self._env.server_id()
+        return self._env.serverId()

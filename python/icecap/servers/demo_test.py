@@ -7,14 +7,14 @@ from demo import setup as setupServer
 class DemoTest(unittest.TestCase):
     def test(self):
         grid = FakeGrid()
-        grid.add_server('Demo-node1', setupServer)
+        grid.addServer('Demo-node1', setupServer)
 
         env = grid.env()
-        proxy = env.get_proxy('printer@Demo-node1.Demo')
+        proxy = env.getProxy('printer@Demo-node1.Demo')
         self.assertEqual(proxy.addOne(5), 6)
         self.assertEqual(proxy.serverId(), 'Demo-node1')
 
-        proxy = env.get_proxy('printer@DemoGroup')
+        proxy = env.getProxy('printer@DemoGroup')
         self.assertEqual(proxy.addOne(7), 8)
 
         output = grabOutput(proxy.printString, 'Hello')

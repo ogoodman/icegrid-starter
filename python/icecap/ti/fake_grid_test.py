@@ -1,3 +1,4 @@
+import os
 import unittest
 from fake_grid import FakeGrid
 from icecap.base.util import pcall
@@ -21,7 +22,7 @@ class FakeEnvTest(unittest.TestCase):
         env = grid.env('Log-node1')
         env.provide('log', 'Log', Servant(1))
 
-        proxy = env.get_proxy('log@Log-node1.Log')
+        proxy = env.getProxy('log@Log-node1.Log')
         self.assertEqual(proxy.id(), 1)
         self.assertEqual(env.replicas(proxy), [])
 
@@ -31,7 +32,7 @@ class FakeEnvTest(unittest.TestCase):
         env.provide('log', 'LogRep', Servant(1))
         env2.provide('log', 'LogRep', Servant(2))
 
-        ids = [env.get_proxy('log@LogGroup').id() for i in xrange(3)]
+        ids = [env.getProxy('log@LogGroup').id() for i in xrange(3)]
         self.assertEqual(ids, [1, 2, 1])
 
         self.assertEqual(repr(proxy), 'log@Log-node1.Log')
@@ -55,7 +56,7 @@ class FakeEnvTest(unittest.TestCase):
         self.assertRaises(TypeError, proxy.end_add, r)
 
         # Find all replicas of a proxy.
-        rproxy = env.get_proxy('log@LogGroup')
+        rproxy = env.getProxy('log@LogGroup')
         replicas = env.replicas(rproxy)
         self.assertEqual([r.id() for r in replicas], [1, 2])
 
@@ -70,6 +71,31 @@ class FakeEnvTest(unittest.TestCase):
         results = pcall(replicas, 'add', 1)
         self.assertEqual(results[0], (2, None))
         self.assertEqual(map(type, results[1]), [type(None), TypeError])
+
+    def testDataDir(self):
+        grid = FakeGrid()
+        e = grid.env('Log-node1')
+
+        path = os.path.join(e.dataDir(), 'fred.txt')
+        self.assertFalse(os.path.exists(path))
+        open(path, 'w').write('hi')
+        self.assertEquals(open(path).read(), 'hi')
+
+        # Data is shared between servers on the same node.
+        ed = grid.env('Data-node1')
+        self.assertEquals(e.dataDir(), ed.dataDir())
+
+        # Data is different on different nodes.
+        e2 = grid.env('Log-node2')
+        path2 = os.path.join(e2.dataDir(), 'fred.txt')
+        self.assertFalse(os.path.exists(path2))
+
+        # Making a new FakeGrid cleans everything up.
+        grid = FakeGrid()
+        e = grid.env('Log-node1')
+
+        path = os.path.join(e.dataDir(), 'fred.txt')
+        self.assertFalse(os.path.exists(path))
 
 if __name__ == '__main__':
     unittest.main()

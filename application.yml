@@ -13,6 +13,7 @@ year: 2014
 autodoc:
   icecap.base: Basic infrastructure
   icecap.base.env: Environment resource factory
+  icecap.base.event_source: An observable servant
   icecap.base.master: Master-slave election
   icecap.base.util: Basic utilities
 

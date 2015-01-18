@@ -20,7 +20,7 @@ Client example::
 
     env = Env() # or FakeEnv()
 
-    proxy = env.get_proxy('name@Adapter-node1.Adapter')
+    proxy = env.getProxy('name@Adapter-node1.Adapter')
     proxy.doSomething()
 
 """
@@ -69,7 +69,11 @@ class Env(object):
             self._ic.setDefaultLocator(registry)
         return self._ic
 
-    def get_proxy(self, addr):
+    def dataDir(self):
+        """Returns the local data directory path."""
+        return icegrid_config.DATA_ROOT
+
+    def getProxy(self, addr):
         """Gets a proxy for the servant (if any) at the specified address.
 
         The servant is queried for its type and cast to the appropriate
@@ -104,7 +108,7 @@ class Env(object):
         :param proxy: a replicated proxy
         """
         if self._query is None:
-            self._query = self.get_proxy('IceGrid/Query')
+            self._query = self.getProxy('IceGrid/Query')
         if getattr(proxy, '_replicas', None) is None:
             proxy._replicas = [proxy.uncheckedCast(p) for p in self._query.findAllReplicas(proxy)]
         return proxy._replicas
@@ -119,7 +123,7 @@ class Env(object):
             a.activate()
         self._communicator().waitForShutdown()
 
-    def server_id(self):
+    def serverId(self):
         """Returns the ``Ice.Admin.ServerId`` property when called on a server."""
         ic = self._communicator()
         return ic.getProperties().getProperty('Ice.Admin.ServerId')

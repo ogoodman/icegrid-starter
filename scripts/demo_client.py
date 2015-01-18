@@ -5,7 +5,7 @@ from icecap.base.master import mcall
 
 env = Env()
 
-printer = env.get_proxy('printer@DemoGroup')
+printer = env.getProxy('printer@DemoGroup')
 
 printer.printString('Hello!')
 
@@ -15,3 +15,9 @@ print '%s + 1 = %s' % (n, nn)
 
 print pcall(env.replicas(printer), 'masterState')
 print mcall(env, printer, 'masterNode')
+
+ev = env.getProxy('events@Demo-node1.Demo')
+sink_info = {'addr': 'printer@Demo-node2.Demo', 'method':'printString'}
+ev.follow('foo', json.dumps(sink_info))
+
+ev.send('foo', 'Garply')

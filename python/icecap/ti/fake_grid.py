@@ -14,7 +14,7 @@ Usage::
     # make a client env.
     cenv = grid.env()
 
-    fred = cenv.get_proxy('fred@FooGroup')
+    fred = cenv.getProxy('fred@FooGroup')
 
 By providing an interface identical to that of ``icecap.base.env.Env``
 and a realistic simulation of the latter's behaviour we are able to
@@ -25,7 +25,11 @@ Note however that it is generally preferable to test servants in
 isolation and they should ideally be written so that this is possible.
 """
 
+import os
+import shutil
 import Ice
+
+DATA_DIR = '/tmp/fake_grid_data'
 
 class FakeEnv(object):
     """Fake version of ``icecap.base.env.Env`` for use in tests.
@@ -37,6 +41,34 @@ class FakeEnv(object):
     def __init__(self, grid, server_id=''):
         self._grid = grid
         self._server_id = server_id
+        self._data_dir = None
+
+    def dataDir(self):
+        """Returns the local data directory path."""
+        if self._data_dir is None:
+            node_id = self._server_id.rsplit('-', 1)[-1]
+            assert node_id != '', 'Only servers have a data directory.'
+            # Make sure tests don't destroy real data.
+            assert '..' not in node_id and not node_id.startswith('/')
+            self._data_dir = os.path.join(self._grid.dataDir(), node_id)
+            if not os.path.exists(self._data_dir):
+                os.mkdir(self._data_dir)
+        return self._data_dir
+
+    def getProxy(self, addr):
+        """Obtain a proxy for a servant the shared grid.
+
+        Usage::
+
+            proxy = env.getProxy('log@Log-node1.Log') # or
+            proxy = env.getProxy('log@LogGroup')
+
+        Of course, the proxy will only be available from the replica
+        group if it was provided as a member of that group.
+
+        :param addr: proxy string with replica group or full adapter id
+        """
+        return FakeProxy(self._grid, addr)
 
     def provide(self, name, adapter, servant):
         """Provide a servant on the shared grid.
@@ -55,22 +87,7 @@ class FakeEnv(object):
         a_id = '%s.%s' % (self._server_id, adapter)
         self._grid.provide(name, a_id, servant)
         addr = name + '@' + (adapter[:-3]+'Group' if adapter.endswith('Rep') else a_id)
-        servant._proxy = self.get_proxy(addr)
-
-    def get_proxy(self, addr):
-        """Obtain a proxy for a servant the shared grid.
-
-        Usage::
-
-            proxy = env.get_proxy('log@Log-node1.Log') # or
-            proxy = env.get_proxy('log@LogGroup')
-
-        Of course, the proxy will only be available from the replica
-        group if it was provided as a member of that group.
-
-        :param addr: proxy string with replica group or full adapter id
-        """
-        return FakeProxy(self._grid, addr)
+        servant._proxy = self.getProxy(addr)
 
     def replicas(self, proxy):
         """Returns a list containing all registered replicas of the proxy.
@@ -83,7 +100,7 @@ class FakeEnv(object):
             proxy._replicas = self._grid.replicas(proxy._addr)
         return proxy._replicas
 
-    def server_id(self):
+    def serverId(self):
         """Returns the server-id of this ``FakeEnv``."""
         return self._server_id
 
@@ -94,6 +111,7 @@ class FakeGrid(object):
         self._adapters = {}
         self._groups = {}
         self._servers = {}
+        self._data_dir = None
 
     def add_group_member(self, server_id):
         """Adds this server id to the appropriate replica group.
@@ -113,7 +131,7 @@ class FakeGrid(object):
         if adapter not in grp_l:
             grp_l.append(adapter)
 
-    def add_server(self, server_id, setup_func):
+    def addServer(self, server_id, setup_func):
         """Sets the specified server up to start on-demand.
 
         :param server_id: the server id of the server
@@ -121,6 +139,15 @@ class FakeGrid(object):
         """
         self._servers[server_id] = setup_func
         self.add_group_member(server_id)
+
+    def dataDir(self):
+        """Returns the local data directory path."""
+        if self._data_dir is None:
+            if os.path.exists(DATA_DIR):
+                shutil.rmtree(DATA_DIR)
+            os.mkdir(DATA_DIR)
+            self._data_dir = DATA_DIR
+        return DATA_DIR
 
     def env(self, server_id=''):
         """Returns a ``FakeEnv`` attached to this grid.
@@ -133,7 +160,7 @@ class FakeGrid(object):
             env.provide('log', 'Log', log) # address is 'log@Log-node1.Log'
 
             e2 = grid.env('anything')
-            log_proxy = e2.get_proxy('log@Log-node1.Log')
+            log_proxy = e2.getProxy('log@Log-node1.Log')
 
         :param server_id: server-id of the new ``FakeEnv``
         """
@@ -210,7 +237,7 @@ class FakeGrid(object):
         adapters = self._groups.get(adapter[:-5], [0, []])[-1]
         return [self.proxy('%s@%s' % (name, a)) for a in adapters]
 
-    def stop_server(self, server_id):
+    def stopServer(self, server_id):
         """Removes all adapters added by the specified server.
 
         :param server_id: the server to stop
