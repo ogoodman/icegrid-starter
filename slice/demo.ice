@@ -10,5 +10,14 @@ module icecap {
             string masterNode() throws ibase::NotMaster;
             string serverId();
         };
+
+        exception FileNotFound {
+        };
+
+        interface File {
+            string read(string path) throws FileNotFound;
+            void write(string path, string data);
+            void update(string info); // replication
+        };
     };
 };

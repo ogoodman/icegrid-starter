@@ -12,5 +12,9 @@ module icecap {
             void unfollow(string chan, string sinkId);
             void send(string chan, string msg); // demo only
         };
+
+        interface EventLog extends EventSource {
+            long append(string msg);
+        };
     };
 };
