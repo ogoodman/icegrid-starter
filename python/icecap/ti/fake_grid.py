@@ -112,6 +112,7 @@ class FakeGrid(object):
         self._groups = {}
         self._servers = {}
         self._data_dir = None
+        self._disabled = set()
 
     def add_group_member(self, server_id):
         """Adds this server id to the appropriate replica group.
@@ -148,6 +149,27 @@ class FakeGrid(object):
             os.mkdir(DATA_DIR)
             self._data_dir = DATA_DIR
         return DATA_DIR
+
+    def disable(self, server_id):
+        """Disables a server.
+
+        A disabled server will not start when sent a request and will
+        instead cause an Ice.NoEndpointException to be raised.
+
+        :param server_id: the server to disable
+        """
+        self._disabled.add(server_id)
+
+    def enable(self, server_id):
+        """Enables a previously disabled server.
+
+        Example::
+
+            grid.enable('Demo-node2')
+
+        :param server_id: the server to enable
+        """
+        self._disabled.discard(server_id)
 
     def env(self, server_id=''):
         """Returns a ``FakeEnv`` attached to this grid.
@@ -189,6 +211,8 @@ class FakeGrid(object):
                 grp[0] = i + 1
         if adapter not in self._adapters:
             server_id = adapter.split('.', 1)[0]
+            if server_id in self._disabled:
+                raise Ice.NoEndpointException(addr)
             if server_id in self._servers:
                 self._servers[server_id](self.env(server_id))
         ad = self._adapters[adapter]

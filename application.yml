@@ -3,7 +3,7 @@ application: IceCap
 
 services:
   - name: Demo
-    setup: icecap.servers.demo.setup
+    setup: icecap.demo.server.init
     replicated: both
 
 # Used by documentation generator
@@ -17,8 +17,9 @@ autodoc:
   icecap.base.master: Master-slave election
   icecap.base.util: Basic utilities
 
-  icecap.demo: Demo servants
+  icecap.demo: Demo services
   icecap.demo.printer: A simple demo servant
+  icecap.demo.server: Demo server
 
   icecap.ti: Test infrastructure
   icecap.ti.fake_grid: Fake grid and resource factory

@@ -1,33 +1,41 @@
 import unittest
 from icecap.ti.fake_grid import FakeGrid
-from icecap.servers import demo
-from icecap.demo.printer import Printer
-from master import mcall
+from master import MasterOrSlave, mcall
+
+class Servant(MasterOrSlave):
+    def masterNode(self):
+        self.assertMaster() # master-only method
+        return self._env.serverId().rsplit('-', 1)[-1]
+
+    def addOne(self, n):
+        return n + 1
+
+def server(env):
+    env.provide('servant', 'DemoRep', Servant(env))
+
+def badServer(env):
+    env.provide('x', 'DemoRep', Servant(env))
 
 class MasterTest(unittest.TestCase):
     def test(self):
         grid = FakeGrid()
         for i in xrange(3):
-            grid.addServer('Demo-node%d' % i, demo.setup)
+            grid.addServer('Demo-node%d' % i, server)
 
         e = grid.env()
 
-        # Start a server.
-        p1 = e.getProxy('printer@Demo-node1.Demo')
-        self.assertTrue(p1.addOne(5), 6)
-
-        # The master won't always be the first started server.
-        p = e.getProxy('printer@DemoGroup')
+        # Choose a master.
+        p = e.getProxy('servant@DemoGroup')
         master = mcall(e, p, 'masterNode')
 
         # Any other proxy should find the same master.
-        p2 = e.getProxy('printer@DemoGroup')
+        p2 = e.getProxy('servant@DemoGroup')
         self.assertEqual(master, mcall(e, p2, 'masterNode'))
         
         # Stop and start a slave.
         slave = (int(master[-1]) + 1) % 3
         grid.stopServer('Demo-node%d' % slave)
-        ps = e.getProxy('printer@Demo-node%d.Demo' % slave)
+        ps = e.getProxy('servant@Demo-node%d.DemoRep' % slave)
         self.assertEqual(ps.addOne(6), 7)
 
         # The master should not have changed.
@@ -53,15 +61,12 @@ class MasterTest(unittest.TestCase):
         self.assertEqual(new_master, mcall(e, p2, 'masterNode'))
         
     def testSparse(self):
-        def badServer(env):
-            env.provide('x', 'DemoRep', Printer(env))
-
         grid = FakeGrid()
-        grid.addServer('Demo-node1', demo.setup)
+        grid.addServer('Demo-node1', server)
         grid.addServer('Demo-node2', badServer)
 
         e = grid.env()
-        p = e.getProxy('printer@DemoGroup')
+        p = e.getProxy('servant@DemoGroup')
 
         self.assertEqual(mcall(e, p, 'masterNode'), 'node1')
 
