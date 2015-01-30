@@ -55,7 +55,7 @@ class FakeEnv(object):
                 os.mkdir(self._data_dir)
         return self._data_dir
 
-    def getProxy(self, addr):
+    def getProxy(self, addr, type=None):
         """Obtain a proxy for a servant the shared grid.
 
         Usage::
@@ -89,14 +89,14 @@ class FakeEnv(object):
         addr = name + '@' + (adapter[:-3]+'Group' if adapter.endswith('Rep') else a_id)
         servant._proxy = self.getProxy(addr)
 
-    def replicas(self, proxy):
+    def replicas(self, proxy, refresh=False):
         """Returns a list containing all registered replicas of the proxy.
 
         The list of proxies is cached on the proxy as proxy._proxies.
 
         :param proxy: a replicated proxy
         """
-        if not hasattr(proxy, '_replicas'):
+        if refresh or not hasattr(proxy, '_replicas'):
             proxy._replicas = self._grid.replicas(proxy._addr)
         return proxy._replicas
 

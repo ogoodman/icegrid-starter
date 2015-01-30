@@ -37,6 +37,7 @@ class EventLog(object):
         * ``addr`` - proxy string specifying a servant
         * ``method`` - method to call on the servant
         * ``arg`` - (optional) extra string to pass with every message
+        * ``seq`` - (optional) sequence number to start at
 
         :param chan: (str) event channel
         :param sink: (json) sink specification
@@ -48,6 +49,9 @@ class EventLog(object):
         chan_followers = self._followers[chan]
         sink_info = json.loads(sink)
         sink_id = sink_info['addr']
+        seq = sink_info.pop('seq', None)
+        if seq is not None:
+            self._log._setSeq(sink_id, seq)
         chan_followers[sink_id] = sink_info
         self._save_followers()
 

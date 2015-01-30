@@ -21,5 +21,20 @@ class FileTest(unittest.TestCase):
 
         self.assertRaises(idemo.FileNotFound, fp2.read, 'barney')
 
+        grid.addServer('Demo-node3', server)
+        fp3 = env.getProxy('file@Demo-node3.DemoRep')
+
+        # We'll start by assuming some 3rd party calls addReplica.
+        fp1.addReplica('node3', True)
+        fp2.addReplica('node3', False)
+
+        fp2.write('barney', 'hi fred')
+        self.assertEqual(fp3.read('barney'), 'hi fred')
+
+        fp3.write('wilma', 'hi fred')
+        self.assertEqual(fp1.read('wilma'), 'hi fred')
+
+        fp3.read('fred')
+
 if __name__ == '__main__':
     unittest.main()

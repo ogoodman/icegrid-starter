@@ -1,9 +1,27 @@
 import json
 import os
+import re
 from icecap import idemo
 from icecap.base.master import findLocal
 from icecap.base.util import openLocal
 from icecap.base.rep_log import RepLog
+
+def getAddr(prx):
+    if not isinstance(prx, basestring):
+        return str(prx)
+    if type(prx) is unicode:
+        return prx.encode('utf8')
+    return prx
+
+def getNode(prx):
+    addr = getAddr(prx)
+    return addr.split('@', 1)[-1].split('.', 1)[0].rsplit('-', 1)[-1]
+
+def getReplicaAddr(prx, node):
+    name, group = getAddr(prx).split('@', 1)
+    assert group.endswith('Group')
+    adapter = group[:-5]
+    return '%s@%s-%s.%sRep' % (name, adapter, node, adapter)
 
 class File(idemo.File):
     """A replicated file store for small files.
@@ -19,6 +37,12 @@ class File(idemo.File):
         self._env = env
         self._log = RepLog(env, 'files/.rep')
         self._peers = None
+
+    def _getPeers(self):
+        if self._peers is None:
+            peers = findLocal(self._env, self._proxy)[1]
+            self._peers = [{'addr':str(p), 'proxy':p, 'method':'update'} for p in peers]
+        return self._peers
 
     def read(self, path, curr=None):
         """Get the contents of the specified file as a string.
@@ -41,11 +65,7 @@ class File(idemo.File):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join('files', path), 'w') as out:
             out.write(data)
-        if self._peers is None:
-            peers = findLocal(self._env, self._proxy)[1]
-            self._peers = [{'addr':str(p), 'proxy':p, 'method':'update'} for p in peers]
-            print self._peers
-        self._log.append(json.dumps({'path':path, 'data':data}), self._peers)
+        self._log.append(json.dumps({'path':path, 'data':data}), self._getPeers())
 
     def update(self, info_s, curr=None):
         """For replication only: applies the supplied json-encoded update.
@@ -55,3 +75,43 @@ class File(idemo.File):
         info = json.loads(info_s)
         with openLocal(self._env, os.path.join('files', info['path']), 'w') as out:
             out.write(info['data'])
+
+    def _addPeer(self, node):
+        for p in self._getPeers():
+            if getNode(p['addr']) == node:
+                return p
+        addr = getReplicaAddr(self._proxy, node)
+        prx = self._env.getProxy(addr, type=self._proxy)
+        p = {'addr': addr, 'proxy': prx, 'method': 'update'}
+        self._peers.append(p)
+        return p
+
+    def _list(self):
+        root = os.path.join(self._env.dataDir(), 'files')
+        plen = len(root) + 1
+        for path, dirs, files in os.walk(root):
+            if '.rep' in dirs:
+                dirs.remove('.rep')
+            for f in files:
+                yield os.path.join(path, f)[plen:]
+
+    def list(self, curr=None):
+        """Returns a list of all files."""
+        return list(self._list())
+
+    def addReplica(self, node, sync, curr=None):
+        """Start replication between this replica and a new one at *node*.
+
+        If *sync* is True, copy all files from this replica to the new one.
+
+        :param node: node of the new replica
+        :param sync: whether to copy files to the new replica
+        """
+        p = self._addPeer(node)
+        seq = self._log.size()
+        if sync:
+            prx = p['proxy']
+            for path in self._list():
+                data = self.read(path)
+                prx.update(json.dumps({'path': path, 'data': data}))
+        self._log._setSeq(p['addr'], seq)

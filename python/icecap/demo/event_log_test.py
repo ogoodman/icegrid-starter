@@ -30,7 +30,7 @@ class EventLogTest(unittest.TestCase):
         e = grid.env()
 
         log_addr = 'logger@Demo-node2.Demo'
-        sink_info = json.dumps({'addr': log_addr, 'method': 'log'})
+        sink_info = json.dumps({'addr': log_addr, 'method': 'log', 'seq': 0})
 
         elog = e.getProxy('event_log@Demo-node1.Demo')
 

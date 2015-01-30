@@ -73,16 +73,22 @@ class Env(object):
         """Returns the local data directory path."""
         return icegrid_config.DATA_ROOT
 
-    def getProxy(self, addr):
+    def getProxy(self, addr, type=None):
         """Gets a proxy for the servant (if any) at the specified address.
 
         The servant is queried for its type and cast to the appropriate
         proxy type.
 
+        The remote call is avoided if a proxy type is provided for an
+        uncheckedCast. An instance of the same type can also be used.
+
         :param addr: proxy string for the required proxy
+        :param type: type for the resulting proxy
         """
-        ic = self._communicator()
-        return toMostDerived(ic.stringToProxy(addr))
+        uproxy = self._communicator().stringToProxy(addr)
+        if type is not None:
+            return type.uncheckedCast(uproxy)
+        return toMostDerived(uproxy)
 
     def provide(self, name, adapter, servant):
         """Adds a servant at the specified name and adapter id.
@@ -99,7 +105,7 @@ class Env(object):
         proxy_cls = importSymbol(s_cls + 'Prx')
         servant._proxy = proxy_cls.uncheckedCast(proxy)
 
-    def replicas(self, proxy):
+    def replicas(self, proxy, refresh=False):
         """Returns a list containing all registered replicas of the proxy.
 
         The list of proxies is cached on the proxy as proxy._proxies so
@@ -109,7 +115,7 @@ class Env(object):
         """
         if self._query is None:
             self._query = self.getProxy('IceGrid/Query')
-        if getattr(proxy, '_replicas', None) is None:
+        if refresh or getattr(proxy, '_replicas', None) is None:
             proxy._replicas = [proxy.uncheckedCast(p) for p in self._query.findAllReplicas(proxy)]
         return proxy._replicas
 

@@ -1,7 +1,7 @@
 import sys
 import random
 from icecap import idemo
-from icecap.base.master import MasterOrSlave
+from icecap.base.master import MasterOrSlave, findLocal
 
 LO, HI = -2**31, 2**31-1
 
@@ -61,3 +61,11 @@ class Printer(MasterOrSlave, idemo.Printer):
     def serverId(self, curr=None):
         """Returns the server-id."""
         return self._env.serverId()
+
+    def callOther_async(self, cb, curr=None):
+        """Gets the serverId of a peer.
+
+        Example of a safe nested invokation using AMD + AMI.
+        """
+        peers = findLocal(self._env, self._proxy)[1]
+        peers[0].begin_serverId(cb.ice_response, cb.ice_exception)
