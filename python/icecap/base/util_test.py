@@ -1,6 +1,7 @@
 import os
 import unittest
 from icecap.base import util
+from icecap.ti.fake_grid import FakeGrid
 
 class UtilTest(unittest.TestCase):
     def test(self):
@@ -19,6 +20,16 @@ class UtilTest(unittest.TestCase):
         so, se = util.grabOutput('not a func', 'arg')
         self.assertEqual(so, '')
         self.assertTrue('TypeError' in se)
+
+    def testGetAddr(self):
+        grid = FakeGrid()
+        env = grid.env()
+
+        addr = 'file@Demo-node1.DemoRep'
+        prx = env.getProxy(addr)
+        self.assertEqual(util.getAddr(prx), addr)
+        self.assertEqual(util.getAddr(addr), addr)
+        self.assertEqual(util.getAddr(unicode(addr)), addr)
 
 if __name__ == '__main__':
     unittest.main()

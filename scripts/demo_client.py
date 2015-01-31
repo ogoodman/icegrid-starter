@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import json
 from icecap.base.env import Env
 from icecap.base.util import pcall

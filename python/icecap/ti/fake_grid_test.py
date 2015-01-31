@@ -14,13 +14,18 @@ class Servant(object):
     def add(self, n):
         return self._id + n
 
+def server(env):
+    env.provide('log', 'Log', Servant(1))
+
 class FakeEnvTest(unittest.TestCase):
     def test(self):
         grid = FakeGrid()
+        grid.addServer('Log-node1', server)
+
+        self.assertEqual(grid.getAllServerIds(), ['Log-node1'])
 
         # Provide and then look up a servant on a normal adapter.
         env = grid.env('Log-node1')
-        env.provide('log', 'Log', Servant(1))
 
         proxy = env.getProxy('log@Log-node1.Log')
         self.assertEqual(proxy.id(), 1)

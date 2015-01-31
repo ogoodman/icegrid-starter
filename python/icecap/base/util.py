@@ -7,6 +7,42 @@ def appRoot():
     """Returns the top-level application directory."""
     return os.path.abspath(__file__).rsplit('/', 4)[0]
 
+def getAddr(prx):
+    """Gets the address (proxy string) from a proxy or proxy string.
+
+    Accepts both proxies and proxy strings so the caller may
+    handle both transparently.
+
+    :param prx: a proxy or proxy string
+    """
+    if not isinstance(prx, basestring):
+        return str(prx)
+    if type(prx) is unicode:
+        return prx.encode('utf8')
+    return prx
+
+def getNode(prx):
+    """Gets the node from a proxy or proxy string.
+
+    :param prx: a proxy or proxy string
+    """
+    addr = getAddr(prx)
+    return addr.split('@', 1)[-1].split('.', 1)[0].rsplit('-', 1)[-1]
+
+def getReplicaAddr(prx, node):
+    """Gets the proxy string for a replica of *prx* on the specified node.
+
+    The specified proxy or proxy string must be a replica group proxy
+    of the form ``<id>@<adapter>Group`` with replicas of the form
+    ``<id>@<adapter>-<node>.<adapter>Rep``.
+ 
+    :param prx: a proxy or proxy string
+    """
+    name, group = getAddr(prx).split('@', 1)
+    assert group.endswith('Group')
+    adapter = group[:-5]
+    return '%s@%s-%s.%sRep' % (name, adapter, node, adapter)
+
 def grabOutput(func, *args):
     """Calls ``func(*args)`` capturing and returning stdout and stderr.
 

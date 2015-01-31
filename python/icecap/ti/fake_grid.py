@@ -188,6 +188,10 @@ class FakeGrid(object):
         """
         return FakeEnv(self, server_id)
 
+    def getAllServerIds(self):
+        """Returns the server ids of all installed servers."""
+        return self._servers.keys()
+
     def get_servant(self, addr, step=True):
         """Obtain a servant by its address.
 

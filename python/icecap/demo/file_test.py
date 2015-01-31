@@ -18,6 +18,7 @@ class FileTest(unittest.TestCase):
 
         fp1.write('fred', 'hi')
         self.assertEqual(fp2.read('fred'), 'hi')
+        self.assertEqual(fp2.list(), ['fred'])
 
         self.assertRaises(idemo.FileNotFound, fp2.read, 'barney')
 

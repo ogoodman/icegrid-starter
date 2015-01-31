@@ -28,6 +28,7 @@ Client example::
 import atexit
 import sys
 import Ice
+import IceGrid
 import icegrid_config
 from icecap.base.util import importSymbol
 
@@ -90,6 +91,10 @@ class Env(object):
             return type.uncheckedCast(uproxy)
         return toMostDerived(uproxy)
 
+    def grid(self):
+        """Gets an associated grid admin object."""
+        return Grid(self)
+
     def provide(self, name, adapter, servant):
         """Adds a servant at the specified name and adapter id.
 
@@ -133,3 +138,61 @@ class Env(object):
         """Returns the ``Ice.Admin.ServerId`` property when called on a server."""
         ic = self._communicator()
         return ic.getProperties().getProperty('Ice.Admin.ServerId')
+
+class _AdminProxy(object):
+    """Acts as a proxy for the grid's IceGrid.Admin object.
+
+    Takes care of transparently starting a new session if the
+    previous one has expired.
+
+    :param env: an ``Env`` environment instance
+    """
+    def __init__(self, env):
+        self._env = env
+        self._registry = None
+        self._admin = None
+
+    def _getAdmin(self, new_session=False):
+        if self._registry is None:
+            self._registry = self._env.getProxy('IceGrid/Registry')
+        if self._admin is None or new_session:
+            session = self._registry.createAdminSession('x', 'x')
+            self._admin = session.getAdmin()
+        return self._admin
+
+    def __getattr__(self, name):
+        def callWithSession(*args):
+            try:
+                return getattr(self._getAdmin(), name)(*args)
+            except Ice.ObjectNotExistException:
+                return getattr(self._getAdmin(new_session=True), name)(*args)
+        return callWithSession
+
+class Grid(object):
+    """Administrative proxy for the grid.
+
+    Usage::
+
+        g = Grid(env)
+        g.getAllServerIds()        # -> list of server ids
+        g.stopServer('Demo-node1') # stops the specified server
+
+    :param env: an ``Env`` environment instance
+    """
+    def __init__(self, env):
+        self._env = env
+        self._admin = _AdminProxy(env)
+
+    def getAllServerIds(self):
+        """Returns the server ids of all configured servers."""
+        return self._admin.getAllServerIds()
+
+    def stopServer(self, server_id):
+        """Stops a server.
+
+        :param server_id: the server to stop
+        """
+        try:
+            self._admin.stopServer(server_id)
+        except IceGrid.ServerStopException:
+            pass

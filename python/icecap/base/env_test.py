@@ -2,6 +2,7 @@ import os
 import unittest
 import Ice
 from env import Env, toMostDerived
+from icecap import idemo
 
 class EnvTest(unittest.TestCase):
     def test(self):
@@ -25,6 +26,17 @@ class EnvTest(unittest.TestCase):
         self.assertEqual(replicas[0].serverId(), 'Demo-node1')
 
         self.assertEqual(toMostDerived(printer), printer)
+
+        pp2 = env.getProxy('printer@DemoGroup', type=idemo.PrinterPrx)
+        self.assertEqual(pp2.addOne(2), 3)
+
+        grid = env.grid()
+        server_ids = grid.getAllServerIds()
+        self.assertTrue('Demo-node1' in server_ids)
+        self.assertTrue('Demo-node2' in server_ids)
+        for server_id in server_ids:
+            grid.stopServer(server_id)
+        grid.stopServer('Demo-node1') # no error if already stopped.
 
     def testDataDir(self):
         env = Env()

@@ -1,27 +1,9 @@
 import json
 import os
-import re
 from icecap import idemo
 from icecap.base.master import findLocal
-from icecap.base.util import openLocal
+from icecap.base.util import openLocal, getNode, getReplicaAddr
 from icecap.base.rep_log import RepLog
-
-def getAddr(prx):
-    if not isinstance(prx, basestring):
-        return str(prx)
-    if type(prx) is unicode:
-        return prx.encode('utf8')
-    return prx
-
-def getNode(prx):
-    addr = getAddr(prx)
-    return addr.split('@', 1)[-1].split('.', 1)[0].rsplit('-', 1)[-1]
-
-def getReplicaAddr(prx, node):
-    name, group = getAddr(prx).split('@', 1)
-    assert group.endswith('Group')
-    adapter = group[:-5]
-    return '%s@%s-%s.%sRep' % (name, adapter, node, adapter)
 
 class File(idemo.File):
     """A replicated file store for small files.
