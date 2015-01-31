@@ -11,6 +11,11 @@ slice: $(SLICE_TARGETS)
 python/%_ice.py: %.ice
 	slice2py $< --ice -Islice --output-dir python
 
+bin/%: scripts/%.py
+	mkdir -p $(HOME)/bin
+	chmod +x $<
+	ln -s `pwd`/$< $(HOME)/bin/$*
+
 update:
 	python admin/grid_admin.py update
 
