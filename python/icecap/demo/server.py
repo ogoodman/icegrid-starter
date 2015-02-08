@@ -1,3 +1,4 @@
+from icecap.demo.antenna import Antenna
 from icecap.demo.file import File
 from icecap.demo.printer import Printer
 from icecap.demo.event_source import EventSource
@@ -12,3 +13,4 @@ def init(env):
     env.provide('printer', 'DemoRep', Printer(env))
     env.provide('events', 'Demo', EventSource(env, ''))
     env.provide('file', 'DemoRep', File(env))
+    env.provide('antenna', 'DemoRep', Antenna(env))

@@ -55,7 +55,7 @@ class FakeEnv(object):
                 os.mkdir(self._data_dir)
         return self._data_dir
 
-    def getProxy(self, addr, type=None):
+    def getProxy(self, addr, type=None, one_way=False):
         """Obtain a proxy for a servant the shared grid.
 
         Usage::
@@ -67,8 +67,14 @@ class FakeEnv(object):
         group if it was provided as a member of that group.
 
         :param addr: proxy string with replica group or full adapter id
+        :param type: type for the resulting proxy
+        :param one_way: whether to return a one-way proxy
         """
-        return FakeProxy(self._grid, addr)
+        return FakeProxy(self._grid, addr, one_way)
+
+    def grid(self):
+        """Get the associated ``FakeGrid``."""
+        return self._grid
 
     def provide(self, name, adapter, servant):
         """Provide a servant on the shared grid.
@@ -188,6 +194,17 @@ class FakeGrid(object):
         """
         return FakeEnv(self, server_id)
 
+    def getAllAdapterIds(self):
+        """Returns all possible adapter ids of the installed servers."""
+        ids = []
+        for server_id in self._servers:
+            name = server_id.split('-', 1)[0]
+            ids.append('%s.%s' % (server_id, name))
+            ids.append('%s.%sRep' % (server_id, name))
+        for name in self._groups:
+            ids.append('%sGroup' % name)
+        return ids
+
     def getAllServerIds(self):
         """Returns the server ids of all installed servers."""
         return self._servers.keys()
@@ -250,7 +267,7 @@ class FakeGrid(object):
             self.add_group_member(adapter.split('.', 1)[0])
 
     def proxy(self, addr):
-        return FakeProxy(self, addr)
+        return FakeProxy(self, addr, one_way=False)
 
     def replicas(self, addr):
         """Returns a list containing all registered replicas of the proxy.
@@ -264,6 +281,13 @@ class FakeGrid(object):
             return []
         adapters = self._groups.get(adapter[:-5], [0, []])[-1]
         return [self.proxy('%s@%s' % (name, a)) for a in adapters]
+
+    def serverIsActive(self, server_id):
+        """Returns True if the server is currently active."""
+        for a_id in self._adapters:
+            if server_id == a_id.split('.', 1)[0]:
+                return True
+        return False
 
     def stopServer(self, server_id):
         """Removes all adapters added by the specified server.
@@ -282,9 +306,10 @@ class FakeProxy(object):
     :param grid: a ``FakeGrid``
     :param addr: a proxy string indicating a servant
     """
-    def __init__(self, grid, addr):
+    def __init__(self, grid, addr, one_way):
         self._grid = grid
         self._addr = addr
+        self._one_way = one_way
 
     def _check_attr(self, name):
         """Raise an ``AttributeError`` if *name* cannot be called on this proxy.
@@ -309,7 +334,14 @@ class FakeProxy(object):
         return self._grid.get_servant(self._addr, step)
 
     def _call(self, name, *args):
-        return getattr(self._servant(), name)(*args)
+        method = getattr(self._servant(), name)
+        if self._one_way:
+            try:
+                method(*args)
+            except:
+                pass
+            return
+        return method(*args)
 
     def __getattr__(self, name):
         # NOTE: we must get the servant on every call rather than saving

@@ -97,3 +97,19 @@ class File(idemo.File):
                 data = self.read(path)
                 prx.update(json.dumps({'path': path, 'data': data}))
         self._log._setSeq(p['addr'], seq)
+
+def addNewReplica(env, file_prx, new_node):
+    """Synchronises a newly added ``File`` replica.
+
+    This must be called after any grid update which adds a new ``File``
+    replica.
+
+    :param env: an environment object
+    :param file_prx: replica group proxy for ``File`` replicas
+    :param new_node: (str) the newly added node id
+    """
+    sync = True
+    for replica in env.replicas(file_prx):
+        if getNode(replica) != new_node:
+            replica.addReplica(new_node, sync)
+            sync = False # Only do this once.

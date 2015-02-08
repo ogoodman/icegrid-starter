@@ -74,7 +74,7 @@ class Env(object):
         """Returns the local data directory path."""
         return icegrid_config.DATA_ROOT
 
-    def getProxy(self, addr, type=None):
+    def getProxy(self, addr, type=None, one_way=False):
         """Gets a proxy for the servant (if any) at the specified address.
 
         The servant is queried for its type and cast to the appropriate
@@ -85,8 +85,11 @@ class Env(object):
 
         :param addr: proxy string for the required proxy
         :param type: type for the resulting proxy
+        :param one_way: whether to return a one-way proxy
         """
         uproxy = self._communicator().stringToProxy(addr)
+        if one_way:
+            uproxy = uproxy.ice_oneway()
         if type is not None:
             return type.uncheckedCast(uproxy)
         return toMostDerived(uproxy)
@@ -183,9 +186,17 @@ class Grid(object):
         self._env = env
         self._admin = _AdminProxy(env)
 
+    def getAllAdapterIds(self):
+        """Returns the adapter ids of all configured adapters."""
+        return self._admin.getAllAdapterIds()
+
     def getAllServerIds(self):
         """Returns the server ids of all configured servers."""
         return self._admin.getAllServerIds()
+
+    def serverIsActive(self, server_id):
+        """Returns True if the server is currently active."""
+        return self._admin.getServerState(server_id) == IceGrid.ServerState.Active
 
     def stopServer(self, server_id):
         """Stops a server.

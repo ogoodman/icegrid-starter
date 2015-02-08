@@ -1,7 +1,7 @@
 import unittest
 from icecap.ti.fake_grid import FakeGrid
 from icecap import idemo
-from file import File
+from file import File, addNewReplica
 
 def server(env):
     env.provide('file', 'DemoRep', File(env))
@@ -25,9 +25,13 @@ class FileTest(unittest.TestCase):
         grid.addServer('Demo-node3', server)
         fp3 = env.getProxy('file@Demo-node3.DemoRep')
 
-        # We'll start by assuming some 3rd party calls addReplica.
-        fp1.addReplica('node3', True)
-        fp2.addReplica('node3', False)
+        # Ideally the existing and new replicas would sort everything
+        # out for themselves, but currently they need a little help.
+        # We must call addNewReplica to ensure that the existing replicas
+        # send updates to the new one, and to replicate all data onto
+        # the new one.
+        fp = env.getProxy('file@DemoGroup')
+        addNewReplica(env, fp, 'node3')
 
         fp2.write('barney', 'hi fred')
         self.assertEqual(fp3.read('barney'), 'hi fred')

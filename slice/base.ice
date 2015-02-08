@@ -16,5 +16,9 @@ module icecap {
         interface EventLog extends EventSource {
             long append(string msg);
         };
+
+        interface Antenna {
+            void serverOnline(string serverId);
+        };
     };
 };
