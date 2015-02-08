@@ -31,5 +31,10 @@ class UtilTest(unittest.TestCase):
         self.assertEqual(util.getAddr(addr), addr)
         self.assertEqual(util.getAddr(unicode(addr)), addr)
 
+        self.assertEqual(util.getNode(prx), 'node1')
+
+        gprx = env.getProxy('file@DemoGroup')
+        self.assertEqual(util.getReplicaAddr(gprx, 'node1'), 'file@Demo-node1.DemoRep')
+
 if __name__ == '__main__':
     unittest.main()

@@ -31,6 +31,7 @@ import Ice
 import IceGrid
 import icegrid_config
 from icecap.base.util import importSymbol
+from icecap.base.env_base import EnvBase
 
 def toMostDerived(ob):
     """Converts any ice proxy to its most derived type.
@@ -48,13 +49,14 @@ def toMostDerived(ob):
     cls = importSymbol(cls_name)
     return cls.uncheckedCast(ob)
 
-class Env(object):
+class Env(EnvBase):
     """The core environment resource factory. Mediates access to all environment 
     resources such as files, Ice connections, HTTP requests, etc.
 
     .. note:: The current version only implements IceGrid connection methods.
     """
     def __init__(self):
+        EnvBase.__init__(self)
         self._ic = None
         self._adapters = {}
         self._query = None
@@ -135,6 +137,7 @@ class Env(object):
         """
         for a in self._adapters.values():
             a.activate()
+        self._runActivationCallbacks()
         self._communicator().waitForShutdown()
 
     def serverId(self):

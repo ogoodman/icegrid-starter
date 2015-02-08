@@ -7,9 +7,13 @@ class Ping(object):
     def ping(self):
         pass
 
+def onOnline(server_id):
+    print 'online', server_id
+
 def server(env):
     env.provide('ping', 'Demo', Ping())
     env.provide('antenna', 'DemoRep', Antenna(env))
+    env.subscribe('online', onOnline)
 
 class AntennaTest(unittest.TestCase):
     def test(self):
@@ -25,7 +29,7 @@ class AntennaTest(unittest.TestCase):
         self.assertFalse(grid.serverIsActive('Demo-node1'))
 
         out, err = grabOutput(notifyOnline, e, 'Demo-node1')
-        self.assertTrue('Online: Demo-node1' in out)
+        self.assertTrue('online Demo-node1' in out)
 
 if __name__ == '__main__':
     unittest.main()

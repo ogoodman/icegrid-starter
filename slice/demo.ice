@@ -21,7 +21,6 @@ module icecap {
             Strings list();
             string read(string path) throws FileNotFound;
             void write(string path, string data);
-            void addReplica(string node, bool sync); // replication
             void update(string info); // replication
         };
     };

@@ -14,6 +14,9 @@ class Servant(object):
     def add(self, n):
         return self._id + n
 
+    def setId(self, id):
+        self._id = id
+
 def server(env):
     env.provide('log', 'Log', Servant(1))
 
@@ -76,6 +79,12 @@ class FakeEnvTest(unittest.TestCase):
         results = pcall(replicas, 'add', 1)
         self.assertEqual(results[0], (2, None))
         self.assertEqual(map(type, results[1]), [type(None), TypeError])
+
+        # Check the one-way call mechanism.
+        oneway_prx = env.getProxy('log@Log-node1.Log', one_way=True)
+        oneway_prx.add('') # no exception
+        oneway_prx.setId(10)
+        self.assertEqual(proxy.add(0), 10)
 
     def testDataDir(self):
         grid = FakeGrid()

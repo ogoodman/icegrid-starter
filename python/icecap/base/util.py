@@ -16,7 +16,8 @@ def getAddr(prx):
     :param prx: a proxy or proxy string
     """
     if not isinstance(prx, basestring):
-        return str(prx)
+        id = prx.ice_getIdentity()
+        return '%s@%s' % (id.name, prx.ice_getAdapterId())
     if type(prx) is unicode:
         return prx.encode('utf8')
     return prx

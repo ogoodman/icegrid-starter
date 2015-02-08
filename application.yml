@@ -5,6 +5,9 @@ services:
   - name: Demo
     setup: icecap.demo.server.init
     replicated: both
+  - name: SmallFS
+    setup: icecap.file.small_fs.server
+    replicated: true
 
 # Used by documentation generator
 author: Oliver Goodman
@@ -12,8 +15,11 @@ year: 2014
 
 autodoc:
   icecap.base: Basic infrastructure
+  icecap.base.antenna: Server environment servant
   icecap.base.env: Environment resource factory
+  icecap.base.env_base: Common environment methods
   icecap.base.master: Master-slave election
+  icecap.base.publisher: Publish-subscribe base class
   icecap.base.rep_log: Log which pushes updates to followers
   icecap.base.util: Basic utilities
 
@@ -21,11 +27,12 @@ autodoc:
   icecap.data.data_log: Persistent sequence of strings
 
   icecap.demo: Demo services
-  icecap.demo.event_log: Observable with persistent event log
   icecap.demo.event_source: An observable servant
-  icecap.demo.file: A replicated file store
   icecap.demo.printer: A simple demo servant
   icecap.demo.server: Demo server
+
+  icecap.file: File storage
+  icecap.file.small_fs: A replicated file store
 
   icecap.ti: Test infrastructure
   icecap.ti.fake_grid: Fake grid and resource factory

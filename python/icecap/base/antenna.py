@@ -3,14 +3,26 @@ import IceGrid
 from icecap import ibase
 
 class Antenna(ibase.Antenna):
+    """A servant for monitoring and communicating server environment state.
+
+    :param env: an environment
+    """
     def __init__(self, env):
         self._env = env
 
     def serverOnline(self, server_id, curr=None):
-        print 'Online:', server_id
-        sys.stdout.flush()
+        """Called when a server goes online so the local environment can publish an 'online' event.
+
+        :param server_id: the id of the server just started
+        """
+        self._env.notify('online', server_id)
 
 def notifyOnline(env, server_id):
+    """Broadcasts a serverOnline call to all currently active servers.
+
+    :param env: an environment
+    :param server_id: the id of the server going online
+    """
     grid = env.grid()
     antenna_adapter = {}
     for a_id in grid.getAllAdapterIds():

@@ -1,8 +1,10 @@
 import json
 import os
+import sys
 from icecap import idemo
+from icecap.base.antenna import Antenna, notifyOnline
 from icecap.base.master import findLocal
-from icecap.base.util import openLocal, getNode, getReplicaAddr
+from icecap.base.util import openLocal, getAddr
 from icecap.base.rep_log import RepLog
 
 class File(idemo.File):
@@ -19,12 +21,43 @@ class File(idemo.File):
         self._env = env
         self._log = RepLog(env, 'files/.rep')
         self._peers = None
+        self._peers_added = False
+        env.subscribe('online', self._onOnline)
 
-    def _getPeers(self):
-        if self._peers is None:
-            peers = findLocal(self._env, self._proxy)[1]
-            self._peers = [{'addr':str(p), 'proxy':p, 'method':'update'} for p in peers]
-        return self._peers
+    def _addPeer(self, prx):
+        if isinstance(prx, basestring):
+            addr = prx
+            prx = self._env.getProxy(addr)
+        else:
+            addr = getAddr(prx)
+        if not self._log.hasSink(addr):
+            self._log.addSink({'addr': addr, 'method': 'update'})
+        if self._log.getSeq(addr) is not None:
+            return
+        # FIXME: sync should be true iff this server is the master.
+        sync = self._env.serverId() == 'SmallFS-node1'
+        seq = self._log.size()
+        if seq > 0 and sync:
+            for path in self._list():
+                data = self.read(path)
+                prx.update(json.dumps({'path': path, 'data': data}))
+        self._log.setSeq(addr, seq)
+
+    def _addPeers(self):
+        if not self._peers_added:
+            for p in findLocal(self._env, self._proxy)[1]:
+                self._addPeer(p)
+            self._peers_added = True
+
+    def _onOnline(self, server_id):
+        """Respond to a peer coming online."""
+        server, node = server_id.split('-', 1)
+        if server != self._env.serverId().split('-', 1)[0]:
+            return # nothing to do with us.
+        addr = 'file@%s.%sRep' % (server_id, server)
+        if not self._log.hasSink(addr):
+            self._addPeer(addr)
+        self._log.update(addr)
 
     def read(self, path, curr=None):
         """Get the contents of the specified file as a string.
@@ -47,7 +80,8 @@ class File(idemo.File):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join('files', path), 'w') as out:
             out.write(data)
-        self._log.append(json.dumps({'path':path, 'data':data}), self._getPeers())
+        self._addPeers()
+        self._log.append(json.dumps({'path':path, 'data':data}))
 
     def update(self, info_s, curr=None):
         """For replication only: applies the supplied json-encoded update.
@@ -57,16 +91,6 @@ class File(idemo.File):
         info = json.loads(info_s)
         with openLocal(self._env, os.path.join('files', info['path']), 'w') as out:
             out.write(info['data'])
-
-    def _addPeer(self, node):
-        for p in self._getPeers():
-            if getNode(p['addr']) == node:
-                return p
-        addr = getReplicaAddr(self._proxy, node)
-        prx = self._env.getProxy(addr, type=self._proxy)
-        p = {'addr': addr, 'proxy': prx, 'method': 'update'}
-        self._peers.append(p)
-        return p
 
     def _list(self):
         root = os.path.join(self._env.dataDir(), 'files')
@@ -81,35 +105,7 @@ class File(idemo.File):
         """Returns a list of all files."""
         return list(self._list())
 
-    def addReplica(self, node, sync, curr=None):
-        """Start replication between this replica and a new one at *node*.
-
-        If *sync* is True, copy all files from this replica to the new one.
-
-        :param node: node of the new replica
-        :param sync: whether to copy files to the new replica
-        """
-        p = self._addPeer(node)
-        seq = self._log.size()
-        if sync:
-            prx = p['proxy']
-            for path in self._list():
-                data = self.read(path)
-                prx.update(json.dumps({'path': path, 'data': data}))
-        self._log._setSeq(p['addr'], seq)
-
-def addNewReplica(env, file_prx, new_node):
-    """Synchronises a newly added ``File`` replica.
-
-    This must be called after any grid update which adds a new ``File``
-    replica.
-
-    :param env: an environment object
-    :param file_prx: replica group proxy for ``File`` replicas
-    :param new_node: (str) the newly added node id
-    """
-    sync = True
-    for replica in env.replicas(file_prx):
-        if getNode(replica) != new_node:
-            replica.addReplica(new_node, sync)
-            sync = False # Only do this once.
+def server(env):
+    env.provide('file', 'SmallFSRep', File(env))
+    env.provide('antenna', 'SmallFSRep', Antenna(env))
+    env.onActivation(notifyOnline, env, env.serverId())

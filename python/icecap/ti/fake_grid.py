@@ -28,10 +28,11 @@ isolation and they should ideally be written so that this is possible.
 import os
 import shutil
 import Ice
+from icecap.base.env_base import EnvBase
 
 DATA_DIR = '/tmp/fake_grid_data'
 
-class FakeEnv(object):
+class FakeEnv(EnvBase):
     """Fake version of ``icecap.base.env.Env`` for use in tests.
 
     :param grid: a shared ``FakeGrid``
@@ -39,6 +40,7 @@ class FakeEnv(object):
     """
 
     def __init__(self, grid, server_id=''):
+        EnvBase.__init__(self)
         self._grid = grid
         self._server_id = server_id
         self._data_dir = None
@@ -235,7 +237,9 @@ class FakeGrid(object):
             if server_id in self._disabled:
                 raise Ice.NoEndpointException(addr)
             if server_id in self._servers:
-                self._servers[server_id](self.env(server_id))
+                env = self.env(server_id)
+                self._servers[server_id](env)
+                env._runActivationCallbacks()
         ad = self._adapters[adapter]
         try:
             return ad[name]
@@ -370,3 +374,10 @@ class FakeProxy(object):
         is ``'Printer-node1.Printer'``.
         """
         return self._addr.split('@', 1)[-1]
+
+    def ice_getIdentity(self):
+        """Gets the Ice.Identity of this proxy.
+
+        This is a simple structure with ``name`` and ``category`` attributes.
+        """
+        return Ice.Identity(self._addr.split('@', 1)[0], '')
