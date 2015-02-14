@@ -107,7 +107,13 @@ def pcall(proxies, method, *args):
             results.append((p, None, e))
     return results
 
-def fcall(proxy, method, *args):
+def call_f(proxy, method, *args):
+    """Calls ``proxy.<method>`` asynchronously returning a ``Future``.
+
+    :param proxy: a proxy
+    :param method: method to invoke
+    :param args: arguments for the method call
+    """
     f = Future()
     getattr(proxy, 'begin_' + method)(*(args + (f.resolve, f.error)))
     return f

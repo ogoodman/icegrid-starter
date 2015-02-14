@@ -2,7 +2,7 @@
 
 import json
 from icecap.base.env import Env
-from icecap.base.util import pcall, fcall, pcall_f
+from icecap.base.util import pcall, call_f, pcall_f
 from icecap.base.master import mcall, findMaster_f
 
 env = Env()
@@ -31,7 +31,7 @@ mstate = pcall_f(env.replicas(printer), 'masterState')
 def negate(n, b):
     return -n + b
 
-number = fcall(printer, 'addOne', 1).then(negate, -1)
+number = call_f(printer, 'addOne', 1).then(negate, -1)
 master = findMaster_f(env.replicas(printer))
 
 for r in mstate.wait():

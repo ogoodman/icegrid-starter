@@ -3,7 +3,7 @@ import random
 from icecap import idemo
 from icecap.base.master import MasterOrSlave, findLocal
 from icecap.base.future import Future
-from icecap.base.util import fcall
+from icecap.base.util import call_f
 
 LO, HI = -2**31, 2**31-1
 
@@ -91,7 +91,7 @@ class Printer(MasterOrSlave, idemo.Printer):
         # similar to the synchronous version.
         if n <= 1:
             return Future(1)
-        f = fcall(self.peer(), 'fact', n-1)
+        f = call_f(self.peer(), 'fact', n-1)
         return f.then(lambda n0: n * n0)
 
     def fact_async(self, cb, n, curr=None):

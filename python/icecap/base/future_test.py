@@ -3,7 +3,7 @@
 import time
 import unittest
 from thread_pool import ThreadPool
-from future import Future, ExceptionList, call, pcall
+from future import Future, ExceptionList, run_f, prun_f
 from icecap.base.util import grabOutput
 
 class FutureTest(unittest.TestCase):
@@ -11,20 +11,20 @@ class FutureTest(unittest.TestCase):
         Future._timeout = 1
         Future._trace_unhandled = False
 
-    def test_pcall(self):
+    def test_prun_f(self):
         pool = ThreadPool(3)
         start = time.time()
 
         tasks = [(time.sleep, [0.1], {}) for i in xrange(6)]
 
-        results = pcall(pool, tasks).wait()
+        results = prun_f(pool, tasks).wait()
 
         elapsed = time.time() - start
         self.assertTrue(0.15 < elapsed < 0.25)
 
         self.assertEquals(results, [None]*6)
 
-        future = pcall(pool, [(lambda: 1+'', [], {})]) # 1+'' will raise a TypeError.
+        future = prun_f(pool, [(lambda: 1+'', [], {})]) # 1+'' will raise a TypeError.
         self.assertRaises(ExceptionList, future.wait)
 
         # Test results arrive in order of submission (not completion).
@@ -32,13 +32,13 @@ class FutureTest(unittest.TestCase):
             time.sleep(t)
             return i
         tasks = [(work, ((3 - i) / 50., i), {}) for i in xrange(3)]
-        results = pcall(pool, tasks).wait()
+        results = prun_f(pool, tasks).wait()
         self.assertEquals(results, range(3))
 
-        self.assertEquals(pcall(pool, []).wait(), [])
+        self.assertEquals(prun_f(pool, []).wait(), [])
 
         Future._timeout = None
-        call(pool, time.sleep, .001).wait()
+        run_f(pool, time.sleep, .001).wait()
 
     def testFuture(self):
         # Make sure handling of multiple values is sane.

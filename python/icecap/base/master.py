@@ -54,6 +54,7 @@ def findMaster_f(proxies):
     return pcall_f(proxies, 'masterState').then(_chooseMaster)
 
 def _chooseMaster(master_info):
+    """Selects the best master from a list of masterState results."""
     best_p = None
     master = False
     max_priority = LO
@@ -115,9 +116,10 @@ class MasterOrSlave(ibase.MasterOrSlave):
         me, siblings = findLocal(self._env, self._proxy)
         if self._is_master:
             return Future(me)
-        return findMaster_f(siblings).then(self._findMaster1, me)
+        return findMaster_f(siblings).then(self._chooseMaster, me)
 
-    def _findMaster1(self, best_p, master, max_priority, me):
+    def _chooseMaster(self, best_p, master, max_priority, me):
+        """Chooses the best master between me or my best sibling."""
         if master or max_priority > self._master_priority:
             return best_p
         if me is not None:
@@ -131,5 +133,6 @@ class MasterOrSlave(ibase.MasterOrSlave):
         return self.findMaster_f().then(self._assertMasterNow)
 
     def _assertMasterNow(self, _=None):
+        """Raises ibase.NotMaster if I am not by now the confirmed master."""
         if not self._is_master:
             raise ibase.NotMaster()

@@ -1,7 +1,6 @@
 import unittest
 from icecap.ti.fake_grid import FakeGrid
 from master import MasterOrSlave, mcall
-from icecap.base.util import pcall
 
 class Servant(MasterOrSlave):
     def masterNode_async(self, cb, curr=None):

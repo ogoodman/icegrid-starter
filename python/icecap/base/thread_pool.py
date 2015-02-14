@@ -48,8 +48,8 @@ class ThreadPool(object):
 
         pool.do(fun, a1, a2, key='K1') # run fun(a1, a2, key='K1') in a thread
 
-        # To get the result as a Future, use the call function:
-        f = call(pool, fun, a1, a2, key='K1')
+        # To get the result as a Future, use the run_f function:
+        f = run_f(pool, fun, a1, a2, key='K1')
 
     Adding a task causes a new thread to be started if there are
     fewer than *n* threads and they are all currently busy.

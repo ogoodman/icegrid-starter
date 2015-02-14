@@ -4,6 +4,19 @@ import time
 import traceback
 
 def rvToArgTup(result):
+    """Converts a return value to a tuple suitable for passing as ``*args``.
+
+    Example::
+
+        result = callSomething()
+        callback(*rvToArgTup(result))
+
+    * If result is ``None`` this does ``callback()``,
+    * if result is not a tuple this does ``callback(result)``, and
+    * if result is a tuple this does ``callback(*result)``.
+
+    :param result: anything
+    """
     if result is None:
         return ()
     if type(result) is tuple:
@@ -11,6 +24,18 @@ def rvToArgTup(result):
     return (result,)
 
 def argTupToRv(tup):
+    """Converts a tuple representing a return value to its usual form.
+
+    Tuples are usually only returned from functions when returning multiple values.
+    Functions which return nothing, normally return ``None`` while functions
+    return a single value by itself. 
+
+    * If tup is ``()`` this returns ``None``,
+    * if tup is ``(value,)`` it returns ``value``, and
+    * if tup is anything bigger, it returns it unchanged.
+
+    :param tup: a tuple
+    """
     if len(tup) == 0:
         return None
     if len(tup) == 1:
@@ -51,6 +76,8 @@ class Future(object):
         f.callback(handler, errh)
 
     which will cause ``handler`` or ``errh`` to be called eventually.
+
+    :param result: (optional) creates ``Future`` already resolved if supplied
     """
     _timeout = None
     _trace_unhandled = False
@@ -208,14 +235,19 @@ class Future(object):
         return new
 
     def __del__(self):
+        """Prints a message to ``sys.stderr`` if an exception was set but never handled.
+
+        By default this only prints a message and the exception. To get a traceback
+        identifying where the exception was added, set ``Future._trace_unhandled = True``.
+        Note that this could affect performance though.
+        """
         if self._exc is not None and self._eb is None:
             print >>sys.stderr, 'Unhandled exception in Future: %r' % self._exc
             if self._tb:
-                print >>sys.stderr, 'Constructed here:'
                 for l in self._tb:
                     print >>sys.stderr, l,
 
-def call(tpool, func, *args, **kw):
+def run_f(tpool, func, *args, **kw):
     """Run *func* via *tpool*, returning a ``Future`` for the return value or exception.
 
     :param tpool: a concurrency provider (with a suitable ``.do`` method)
@@ -228,9 +260,18 @@ def call(tpool, func, *args, **kw):
     return result
 
 class ExceptionList(Exception):
+    """A list of exceptions.
+
+    Example::
+
+        try:
+            func()
+        except ExceptionList, e:
+            e.args[0] # is a list of exceptions
+    """
     pass
 
-def pcall(tpool, tasks):
+def prun_f(tpool, tasks):
     """Run a set of tasks in parallel.
 
     Returns a ``Future`` which will resolve either to a list of
