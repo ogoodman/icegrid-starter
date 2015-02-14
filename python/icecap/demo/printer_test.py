@@ -25,5 +25,20 @@ class PrinterTest(unittest.TestCase):
 
         self.assertEqual(mcall(env, proxy, 'masterNode'), 'node1')
 
+    def testFact(self):
+        grid = FakeGrid()
+        grid.addServer('Demo-node1', server.init)
+        grid.addServer('Demo-node2', server.init)
+
+        env = grid.env()
+        proxy = env.getProxy('printer@DemoGroup')
+        self.assertEqual(proxy.fact(3), 6)
+
+        # For coverage: a synchronous definition of fact has been left in
+        # to explain about deadlock.
+        servant = proxy._servant()
+        self.assertEqual(servant.fact(0), 1)
+        self.assertEqual(servant.fact(2), 2)
+
 if __name__ == '__main__':
     unittest.main()

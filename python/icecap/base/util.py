@@ -1,6 +1,7 @@
 import os
 import sys
 import traceback
+from icecap.base.future import Future
 from cStringIO import StringIO
 
 def appRoot():
@@ -88,8 +89,8 @@ def openLocal(env, path, mode='r'):
 def pcall(proxies, method, *args):
     """Makes a given method call in parallel on all the supplied proxies.
 
-    Returns a list of ``(result, exc)`` for each proxy respectively. If no
-    exception was raised, ``exc`` will be ``None``. If an exception was
+    Returns a list of ``(proxy, result, exc)`` for each proxy respectively.
+    If no exception was raised, ``exc`` will be ``None``. If an exception was
     raised, ``result`` will be None.
 
     :param proxies: list of proxies to call
@@ -101,7 +102,50 @@ def pcall(proxies, method, *args):
     for p, r in rs:
         try:
             result = getattr(p, 'end_' + method)(r)
-            results.append((result, None))
+            results.append((p, result, None))
         except Exception, e:
-            results.append((None, e))
+            results.append((p, None, e))
     return results
+
+def fcall(proxy, method, *args):
+    f = Future()
+    getattr(proxy, 'begin_' + method)(*(args + (f.resolve, f.error)))
+    return f
+
+class _PCallCB(object):
+    def __init__(self, f, proxy, expected, results):
+        self._f = f
+        self._proxy = proxy
+        self._expected = expected
+        self._results = results
+
+    def ice_response(self, *result):
+        self._results.append((self._proxy, result, None))
+        if len(self._results) == self._expected:
+            self._f.resolve(self._results)
+
+    def ice_exception(self, exc):
+        self._results.append((self._proxy, None, exc))
+        if len(self._results) == self._expected:
+            self._f.resolve(self._results)
+
+def pcall_f(proxies, method, *args):
+    """Makes a given method call in parallel on all the supplied proxies.
+
+    Returns a list of ``(proxy, result, exc)`` for each proxy respectively.
+    If no exception was raised, ``exc`` will be ``None``. If an exception was
+    raised, ``result`` will be None.
+
+    :param proxies: list of proxies to call
+    :param method: the method to call
+    :param args: arguments to provide with the call
+    """
+    f = Future()
+    expected = len(proxies)
+    results = []
+    for p in proxies:
+        pcb = _PCallCB(f, p, expected, results)
+        getattr(p, 'begin_' + method)(*(args + (pcb.ice_response, pcb.ice_exception)))
+    if expected == 0:
+        f.resolve([])
+    return f

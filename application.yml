@@ -18,9 +18,11 @@ autodoc:
   icecap.base.antenna: Server environment servant
   icecap.base.env: Environment resource factory
   icecap.base.env_base: Common environment methods
+  icecap.base.future: Asynchronous return values
   icecap.base.master: Master-slave election
   icecap.base.publisher: Publish-subscribe base class
   icecap.base.rep_log: Log which pushes updates to followers
+  icecap.base.thread_pool: A simple thread-pool
   icecap.base.util: Basic utilities
 
   icecap.data: Persistent data

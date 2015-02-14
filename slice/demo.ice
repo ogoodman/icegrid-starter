@@ -7,9 +7,9 @@ module icecap {
             void printString(string s);
             int addOne(int n);
             int getRand();
-            string masterNode() throws ibase::NotMaster;
             string serverId();
-            ["amd"] string callOther();
+            ["amd"] string masterNode() throws ibase::NotMaster;
+            ["amd"] int fact(int n);
         };
 
         exception FileNotFound {

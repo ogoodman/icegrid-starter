@@ -26,9 +26,13 @@ isolation and they should ideally be written so that this is possible.
 """
 
 import os
+import re
 import shutil
+import sys
+import traceback
 import Ice
 from icecap.base.env_base import EnvBase
+from icecap.base.future import argTupToRv, rvToArgTup
 
 DATA_DIR = '/tmp/fake_grid_data'
 
@@ -304,6 +308,44 @@ class FakeGrid(object):
 
 ATT_ERR_MSG = "'%s' object has no attribute '%s'" 
 
+class FakeCB(object):
+    def __init__(self):
+        self._result = None
+        self._exc = None
+
+    def ice_response(self, *args):
+        self._result = args
+
+    def ice_exception(self, exc):
+        self._exc = exc
+
+    def value(self):
+        if type(self._result) is tuple:
+            return argTupToRv(self._result)
+        assert self._exc is not None, 'FakeCB is unresolved'
+        raise self._exc
+
+    def discard(self):
+        if type(self._result) is tuple:
+            return
+        assert self._exc is not None, 'FakeCB is unresolved'
+        _onewayExc(self._exc)
+
+class FakeResult(object):
+    def __init__(self, result, exc):
+        self._result = result
+        self._exc = exc
+
+    def _end(self):
+        if self._exc is None:
+            return self._result
+        raise self._exc
+
+TOO_MANY_ARGS_RE = re.compile(r'\w+\(\) takes (at most|exactly) \d+ arguments')
+
+def _onewayExc(exc):
+    print >>sys.stderr, 'OneWay Exc:', exc
+
 class FakeProxy(object):
     """Simulates an Ice proxy, passing calls through to the servant.
 
@@ -326,8 +368,10 @@ class FakeProxy(object):
         servant = self._servant(step=False)
         if '_' in name:
             raise AttributeError(ATT_ERR_MSG % (type(servant), name))
-        method = getattr(servant, name)
-        if not callable(method):
+        for n in (name, name + '_async'):
+            if callable(getattr(servant, n, None)):
+                break
+        else:
             raise AttributeError(ATT_ERR_MSG % (type(servant), name))
 
     def _servant(self, step=True):
@@ -338,24 +382,50 @@ class FakeProxy(object):
         return self._grid.get_servant(self._addr, step)
 
     def _call(self, name, *args):
-        method = getattr(self._servant(), name)
+        servant = self._servant()
+        method = getattr(servant, name + '_async', None)
+        if method is not None:
+            cb = FakeCB()
+            try:
+                method(cb, *args)
+            except Exception, e:
+                cb.ice_exception(e)
+            if self._one_way:
+                cb.discard()
+            return cb.value()
+        method = getattr(servant, name)
         if self._one_way:
             try:
                 method(*args)
-            except:
-                pass
+            except Exception, e:
+                _onewayExc(e)
             return
         return method(*args)
+
+    def _begin(self, fname, args):
+        if len(args) >= 2 and callable(args[-2]) and callable(args[-1]):
+            # We have been passed callbacks
+            cb, eb = args[-2:]
+            try:
+                result = self._call(fname, *args[:-2])
+                cb(*rvToArgTup(result))
+            except Exception, e:
+                eb(e)
+        else:
+            try:
+                return FakeResult(self._call(fname, *args), None)
+            except Exception, e:
+                return FakeResult(None, e)
 
     def __getattr__(self, name):
         # NOTE: we must get the servant on every call rather than saving
         # a bound method because it could change between calls.
         if name.startswith('begin_'):
             fname = name.split('_', 1)[-1]
-            fun = lambda *args: args
+            fun = lambda *args: self._begin(fname, args)
         elif name.startswith('end_'):
             fname = name.split('_', 1)[-1]
-            fun = lambda args: self._call(fname, *args)
+            fun = lambda result: result._end()
         else:
             fname = name
             fun = lambda *args: self._call(name, *args)

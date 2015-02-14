@@ -1,11 +1,18 @@
 import unittest
 from icecap.ti.fake_grid import FakeGrid
 from master import MasterOrSlave, mcall
+from icecap.base.util import pcall
 
 class Servant(MasterOrSlave):
-    def masterNode(self):
-        self.assertMaster() # master-only method
+    def masterNode_async(self, cb, curr=None):
+        self.masterNode_f().callback(cb.ice_response, cb.ice_exception)
+    def masterNode_f(self):
+        return self.assertMaster_f().then(self._masterNode)
+    def _masterNode(self, _=None):
         return self._env.serverId().rsplit('-', 1)[-1]
+
+    def findMaster_async(self, cb, curr=None):
+        self.findMaster_f().callback(cb.ice_response, cb.ice_exception)
 
     def addOne(self, n):
         return n + 1
@@ -59,7 +66,7 @@ class MasterTest(unittest.TestCase):
 
         # Make sure p2 tracks the change.
         self.assertEqual(new_master, mcall(e, p2, 'masterNode'))
-        
+
     def testSparse(self):
         grid = FakeGrid()
         grid.addServer('Demo-node1', server)

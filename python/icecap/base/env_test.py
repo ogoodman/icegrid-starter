@@ -2,7 +2,7 @@ import os
 import unittest
 import Ice
 from env import Env, toMostDerived
-from icecap import idemo
+from icecap import ibase, idemo
 from icecap.base.antenna import notifyOnline
 
 class EnvTest(unittest.TestCase):
@@ -28,6 +28,7 @@ class EnvTest(unittest.TestCase):
 
         # For coverage.
         notifyOnline(env, 'Demo-node1')
+        env.getProxy('antenna@Demo-node1.DemoRep', ibase.AntennaPrx, one_way=True)
 
         self.assertEqual(toMostDerived(printer), printer)
 

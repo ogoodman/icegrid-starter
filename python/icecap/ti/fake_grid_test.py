@@ -1,7 +1,7 @@
 import os
 import unittest
 from fake_grid import FakeGrid
-from icecap.base.util import pcall
+from icecap.base.util import pcall, grabOutput
 
 class Servant(object):
     def __init__(self, id):
@@ -15,6 +15,14 @@ class Servant(object):
         return self._id + n
 
     def setId(self, id):
+        self._id = id
+
+    def setIdA_async(self, cb, id):
+        assert type(id) is int, 'wrong type'
+        self._id = id
+        cb.ice_response()
+
+    def setIdBad_async(self, cb, id):
         self._id = id
 
 def server(env):
@@ -72,19 +80,28 @@ class FakeEnvTest(unittest.TestCase):
         self.assertEqual(env.replicas(proxy), [])
 
         # Use pcall which would make the calls in parallel for real proxies.
-        self.assertEqual(pcall(replicas, 'id'), [(1, None), (2, None)])
+        self.assertEqual([r[1:] for r in pcall(replicas, 'id')], [(1, None), (2, None)])
 
         # Change servant so that one of two 'add' calls will fail.
         env2.provide('log', 'LogRep', Servant(''))
         results = pcall(replicas, 'add', 1)
-        self.assertEqual(results[0], (2, None))
-        self.assertEqual(map(type, results[1]), [type(None), TypeError])
+        self.assertEqual(results[0][1:], (2, None))
+        self.assertEqual(map(type, results[1][1:]), [type(None), TypeError])
+
+        self.assertRaises(AssertionError, rproxy.setIdBad, 5)
 
         # Check the one-way call mechanism.
         oneway_prx = env.getProxy('log@Log-node1.Log', one_way=True)
-        oneway_prx.add('') # no exception
+        # Exception printed (in FakeGrid only) but not raised
+        err = grabOutput(oneway_prx.add, '')[1]
+        self.assertTrue('unsupported operand type' in err)
         oneway_prx.setId(10)
         self.assertEqual(proxy.add(0), 10)
+
+        oneway_prx.setIdA(12)
+        self.assertEqual(proxy.add(0), 12)
+        err = grabOutput(oneway_prx.setIdA, '12')[1]
+        self.assertTrue('wrong type' in err)
 
     def testDataDir(self):
         grid = FakeGrid()
