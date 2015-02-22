@@ -1,7 +1,7 @@
 import os
 import sys
 import traceback
-from icecap.base.future import Future
+from icecap.base.future import Future, argTupToRv
 from cStringIO import StringIO
 
 def appRoot():
@@ -30,6 +30,22 @@ def getNode(prx):
     """
     addr = getAddr(prx)
     return addr.split('@', 1)[-1].split('.', 1)[0].rsplit('-', 1)[-1]
+
+def adapterName(prx):
+    """Gets the adapter name from a proxy or proxy string.
+
+    :param prx: a proxy or proxy string
+    """
+    if isinstance(prx, basestring):
+        a_id = prx.split('@', 1)[-1]
+    else:
+        a_id = prx.ice_getAdapterId()
+    a_id = a_id.split('.', 1)[-1]
+    if a_id.endswith('Rep'):
+        return a_id[:-3]
+    if a_id.endswith('Group'):
+        return a_id[:-5]
+    return a_id
 
 def getReplicaAddr(prx, node):
     """Gets the proxy string for a replica of *prx* on the specified node.
@@ -126,7 +142,7 @@ class _PCallCB(object):
         self._results = results
 
     def ice_response(self, *result):
-        self._results.append((self._proxy, result, None))
+        self._results.append((self._proxy, argTupToRv(result), None))
         if len(self._results) == self._expected:
             self._f.resolve(self._results)
 

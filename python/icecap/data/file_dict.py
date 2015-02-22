@@ -45,4 +45,7 @@ class FileDict(object):
 
     def keys(self):
         """Returns a list of keys."""
-        return os.listdir(self._path)
+        try:
+            return os.listdir(self._path)
+        except OSError:
+            return []

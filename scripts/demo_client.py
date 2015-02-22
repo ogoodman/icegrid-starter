@@ -15,7 +15,8 @@ n = 42
 nn = printer.addOne(n)
 print '%s + 1 = %s' % (n, nn)
 
-print pcall(env.replicas(printer), 'masterState')
+for r in pcall(env.replicas(printer), 'masterState'):
+    print r
 print mcall(env, printer, 'masterNode')
 
 ev = env.getProxy('events@Demo-node1.Demo')

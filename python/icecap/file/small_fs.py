@@ -4,7 +4,7 @@ import sys
 from icecap import idemo
 from icecap.base.antenna import Antenna, notifyOnline
 from icecap.base.master import findLocal, MasterOrSlave
-from icecap.base.util import openLocal, getAddr
+from icecap.base.util import openLocal, getAddr, adapterName
 from icecap.base.rep_log import RepLog
 
 class File(idemo.File, MasterOrSlave):
@@ -20,7 +20,6 @@ class File(idemo.File, MasterOrSlave):
     def __init__(self, env):
         MasterOrSlave.__init__(self, env)
         self._log = RepLog(env, 'files/.rep')
-        self._peers = None
         self._peers_added = False
         env.subscribe('online', self._onOnline)
 

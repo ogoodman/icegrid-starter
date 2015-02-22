@@ -3,8 +3,10 @@ module icecap {
         exception NotMaster {
         };
 
+        sequence<long> Longs;
+
         interface MasterOrSlave {
-            bool masterState(out long priority);
+            Longs masterState();
         };
 
         interface EventSource {

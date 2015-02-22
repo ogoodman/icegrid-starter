@@ -113,6 +113,10 @@ class RepLog(object):
         """
         return addr in self._sinks
 
+    def sinks(self):
+        """Returns a list of sink addresses."""
+        return self._sinks.keys()
+
     def addSink(self, sink_info):
         """Adds a sink at the specified sequence number.
 

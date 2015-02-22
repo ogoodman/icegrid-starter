@@ -37,6 +37,15 @@ class FileTest(unittest.TestCase):
 
         # Starting SmallFS-node3 will cause a full sync from SmallFS-node1.
         grid.addServer('SmallFS-node3', server)
+
+        # FIXME: if we take the previous master offline now, node3 might
+        # be chosen as master which would be wrong because it has no data.
+        # grid.stopServer('SmallFS-node1')
+
+        fp = env.getProxy('file@SmallFSGroup')
+
+        self.assertEqual(mcall(env, fp, 'list'), ['fred'])
+
         fp3 = env.getProxy('file@SmallFS-node3.SmallFSRep')
         self.assertEqual(fp3.listRep(), ['fred'])
         self.assertEqual(fp3.readRep('fred'), 'lo')

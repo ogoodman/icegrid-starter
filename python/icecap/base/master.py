@@ -4,7 +4,7 @@ from icecap import ibase
 from icecap.base.util import pcall, pcall_f
 from icecap.base.future import Future
 
-LO, HI = -2**63, 2**63-1
+HI = 2**63-1
 
 def findLocal(env, proxy):
     """Finds a local proxy in the replica group of *proxy*.
@@ -36,7 +36,7 @@ def findMaster(proxies):
     Unreachable proxies are skipped and if the resulting list of proxies is empty
     ``None`` will be returned.
 
-    Returns (*master*, *is_master*, *priority*) of type (``proxy``, ``bool``, ``int64``).
+    Returns (*master*, *priority*) of type (``proxy``, ``[int64]``).
 
     :param proxies: a list of proxies to query
     """
@@ -48,7 +48,7 @@ def findMaster_f(proxies):
     Unreachable proxies are skipped and if the resulting list of proxies is empty
     ``None`` will be returned.
 
-    Returns (*master*, *is_master*, *priority*) of type (``proxy``, ``bool``, ``int64``).
+    Returns (*master*, *priority*) of type (``proxy``, ``[int64]``).
 
     :param proxies: a list of proxies to query
     """
@@ -58,17 +58,16 @@ def _chooseMaster(master_info):
     """Selects the best master from a list of masterState results."""
     best_p = None
     master = False
-    max_priority = LO
-    for p, result, err in master_info:
+    max_priority = [-1]
+    for p, priority, err in master_info:
         if err is not None:
             continue
-        master, priority = result
-        if best_p is None or master or priority > max_priority:
+        if best_p is None or priority > max_priority:
             best_p = p
             max_priority = priority
         if master:
             break
-    return best_p, master, max_priority
+    return best_p, max_priority
 
 def mcall(env, proxy, method, *args):
     """Call the given method on the master.
@@ -98,19 +97,21 @@ class MasterOrSlave(ibase.MasterOrSlave):
     """
     def __init__(self, env):
         self._env = env
-        self._master_priority = random.randint(LO, HI)
+        self._master_priority = random.randint(0, HI)
         self._is_master = False
 
     def masterState(self, curr=None):
-        """Returns the pair (*is_master, priority*) of type (``bool``, ``int64``).
+        """Returns a list of *int64* giving the master priority of this replica.
 
-        The rule is that if one of the servants returns ``True`` for
-        *is_master*, that one is the master. If none return ``True``
-        the servant which returned the highest *priority* is master
-        (and will start returning ``True`` for *is_master* as soon as
-        it accepts the next call for which it must be master).
+        The first entry is 1 if this replica is the master, 0 otherwise.
+        The second entry is a random number chosen at instantiation.
+
+        When finding a master, priorities are compared lexicographically.
+        If a replica is already a master, it will automatically come first.
+        If no replica has yet become a master, the replica with the highest
+        random number will be chosen.
         """
-        return (self._is_master, self._master_priority)
+        return [1 if self._is_master else 0, self._master_priority]
 
     def findMaster_f(self):
         """Returns the master proxy from the configured replica group."""
@@ -119,9 +120,9 @@ class MasterOrSlave(ibase.MasterOrSlave):
             return Future(me)
         return findMaster_f(siblings).then(self._chooseMaster, me)
 
-    def _chooseMaster(self, best_p, master, max_priority, me):
+    def _chooseMaster(self, best_p, max_priority, me):
         """Chooses the best master between me or my best sibling."""
-        if master or max_priority > self._master_priority:
+        if max_priority > self.masterState():
             return best_p
         if me is not None:
             self._is_master = True
