@@ -16,6 +16,7 @@ year: 2014
 autodoc:
   icecap.base: Basic infrastructure
   icecap.base.antenna: Server environment servant
+  icecap.base.cap_dict: Dictionary of objects
   icecap.base.env: Environment resource factory
   icecap.base.env_base: Common environment methods
   icecap.base.future: Asynchronous return values
@@ -27,9 +28,11 @@ autodoc:
 
   icecap.data: Persistent data
   icecap.data.data_log: Persistent sequence of strings
+  icecap.data.file_dict: Persistent dictionary of strings
 
   icecap.demo: Demo services
   icecap.demo.event_source: An observable servant
+  icecap.demo.person: A serializable object
   icecap.demo.printer: A simple demo servant
   icecap.demo.server: Demo server
 

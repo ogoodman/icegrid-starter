@@ -31,9 +31,8 @@ class RepLogTest(unittest.TestCase):
 
         addr1 = 'servant@Server-node1.Server'
         self.assertEqual(log.getSink(addr1), None)
-        sink1 = {'addr': addr1, 'method': 'func'}
+        sink1 = {'addr': addr1, 'method': 'func', 'pos': 0}
         self.assertTrue(log.addSink(sink1))
-        self.assertEqual(log.getSink(addr1), sink1)
         self.assertFalse(log.addSink(sink1))
 
         log.update(addr1) # no-op for empty log.
@@ -43,34 +42,35 @@ class RepLogTest(unittest.TestCase):
         pr1 = env.getProxy(addr1)
         self.assertEqual(pr1.calls(), ['one'])
 
+        pos1 = log.size()
         self.assertTrue(log.removeSink(addr1))
         self.assertFalse(log.removeSink(addr1))
         log.append('two')
         self.assertEqual(log.size(), 2)
         self.assertEqual(pr1.calls(), ['one'])
 
-        # Sinks added to a non-empty log don't start automaticall.
-        addr2 = 'servant@Server-node2.Server'
-        sink2 = {'addr': addr2, 'method': 'func'}
-        log.addSink(sink2)
-        log.update(addr2)
-        pr2 = env.getProxy(addr2)
-        self.assertEqual(pr2.calls(), [])
-
-        # A re-added sink continues from where it was.
+        # Re-add sink1 at previous position
+        sink1['pos'] = pos1
         log.addSink(sink1)
         log.update(addr1)
         self.assertEqual(pr1.calls(), ['one', 'two'])
 
+        addr2 = 'servant@Server-node2.Server'
+        pr2 = env.getProxy(addr2)
+        self.assertEqual(pr2.calls(), [])
+
         grid.disable('Server-node2')
         grid.stopServer('Server-node2')
-        log.setSeq(addr2, 0) # start pushing to addr2
+
+        sink2 = {'addr': addr2, 'method': 'func', 'pos': 0}
+        log.addSink(sink2)
         log.update(addr2)
+        self.assertEqual(log.getSeq(addr2), 0)
 
-        log.update('nonesuch@Server-node3.Server') # no-op
+        self.assertRaises(KeyError, log.update, 'nonesuch@Server-node3.Server')
 
-        sink1 = {'addr': addr1, 'method': 'f2', 'arg': 'opt-arg'}
         log.removeSink(addr1)
+        sink1 = {'addr': addr1, 'method': 'f2', 'arg': 'opt-arg', 'pos': log.size()}
         log.addSink(sink1)
         log.append('three')
         self.assertEqual(pr1.calls(), ['one', 'two', 'three:opt-arg'])
@@ -87,7 +87,7 @@ class RepLogTest(unittest.TestCase):
         self.assertEqual(pr2.calls(), ['one', 'two', 'three', 'three'])
 
         log = RepLog(env, 'test_log')
-        log.removeSeq(addr2)
+        log.removeSink(addr2)
         log.append('four')
         self.assertEqual(pr1.calls(), ['one', 'two', 'three:opt-arg', 'four:opt-arg'])
         self.assertEqual(pr2.calls(), ['one', 'two', 'three', 'three'])

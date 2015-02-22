@@ -30,9 +30,8 @@ class File(idemo.File):
             prx = self._env.getProxy(addr)
         else:
             addr = getAddr(prx)
-        if not self._log.hasSink(addr):
-            self._log.addSink({'addr': addr, 'method': 'update'})
-        if self._log.getSeq(addr) is not None:
+
+        if self._log.hasSink(addr):
             return
         # FIXME: sync should be true iff this server is the master.
         sync = self._env.serverId() == 'SmallFS-node1'
@@ -41,7 +40,7 @@ class File(idemo.File):
             for path in self._list():
                 data = self.read(path)
                 prx.update(json.dumps({'path': path, 'data': data}))
-        self._log.setSeq(addr, seq)
+        self._log.addSink({'addr': addr, 'method': 'update', 'pos': seq})
 
     def _addPeers(self):
         if not self._peers_added:

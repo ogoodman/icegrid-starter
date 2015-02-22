@@ -1,10 +1,76 @@
 import json
 import os
 from icecap.base.util import openLocal
+from icecap.base.cap_dict import CapDict
 from icecap.data.data_log import DataLog
+from icecap.data.file_dict import FileDict
 
-def toStr(s):
-    return s.encode('utf8')
+class Relay(object):
+    """A Relay passes messages from a DataLog to a method of a remote object.
+
+    :param env: an environment instance
+    :param log: a log to read messages from
+    :param pos: position in the log to start from
+    :param addr: proxy string of a remote object
+    :param method: method of the remote object to pass messages to
+    :param arg: (optional) extra string argumen to pass with each message
+    """
+
+    serialize = ('pos', 'addr', 'method', 'arg')
+
+    def __init__(self, env, log, pos, addr, method, arg=None):
+        self._env = env
+        self._log = log
+        self._pos = pos
+        self._addr = addr
+        self._method = method
+        self._arg = arg
+        self._remote = None
+        self._updating = False
+
+    def put(self, seq=None, msg=None):
+        """Wake the relay to start sending messages.
+
+        The ``Relay`` always starts from its recorded position taking
+        messages from the log, passing them to the remote object, and then
+        updating and saving its new position.
+
+        The *seq* and *msg*, if supplied, must be the item most recently
+        appended to the log. If *seq* happens to match our position then *msg*
+        can be passed directly without reading from the log.
+
+        :param seq: (optional) position of last message in the log
+        :param msg: (optional) the last message in the log
+        """
+        if self._updating:
+            return
+        self._updating = True
+        if seq is None:
+            seq = self._log.last() or 0
+        try:
+            if msg is not None and self._pos == seq:
+                self._putMsg(seq, msg)
+            elif self._pos <= seq:
+                for i, msg in self._log.iteritems(self._pos):
+                    if not self._putMsg(i, msg):
+                        break
+        finally:
+            self._updating = False
+
+    def _putMsg(self, seq, msg):
+        try:
+            if self._remote is None:
+                proxy = self._env.getProxy(self._addr)
+                self._remote = getattr(proxy, self._method)
+            if self._arg is None:
+                self._remote(msg)
+            else:
+                self._remote(msg, self._arg)
+            self._pos = seq + 1
+            self._save(self)
+            return True
+        except:
+            return False
 
 class RepLog(object):
     """A ``RepLog`` logs event messages and passes them to followers in order.
@@ -12,7 +78,7 @@ class RepLog(object):
     Example::
 
         rl = RepLog(env, 'rep_log')
-        rl.addSink({'addr': 'fred@Foo-n1.Foo', 'method': 'update'})
+        rl.addSink({'pos': 0, 'addr': 'fred@Foo-n1.Foo', 'method': 'update'})
         rl.append('hello') # calls fred.update('hello')
 
     Each follower's position in the log is updated after the message is passed.
@@ -23,61 +89,36 @@ class RepLog(object):
     messages.
 
     :param env: an environment
-    :param path: local directory for log files and position store
+    :param path: local directory for log files and sinks
     """
     def __init__(self, env, path):
         self._env = env
         self._path = path
-        self._seq = None
-        self._sinks = None
         data_dir = os.path.join(env.dataDir(), path)
         self._log = DataLog(data_dir)
-        self._updating = None
-
-    def _getSinks(self):
-        if self._sinks is None:
-            sink_file = os.path.join(self._env.dataDir(), self._path, 'sinks')
-            try:
-                self._sinks = json.load(open(sink_file))
-            except IOError:
-                self._sinks = []
-        return self._sinks
-
-    def _saveSinks(self):
-        sinks = []
-        for s in self._getSinks():
-            s_copy = dict(s)
-            s_copy.pop('proxy', None)
-            sinks.append(s_copy)
-        sink_file = os.path.join(self._env.dataDir(), self._path, 'sinks')
-        with open(sink_file, 'w') as out:
-            json.dump(sinks, out)
+        sink_store = FileDict(os.path.join(data_dir, 'sink'))
+        self._sinks = CapDict(sink_store, extra={'env': env, 'log': self._log})
 
     def getSink(self, addr):
         """Returns the specified sink, if present, else None.
 
         :param addr: the address (sink_id) of the sink to get
         """
-        for s in self._getSinks():
-            if s['addr'] == addr:
-                return s
-        return None
+        return self._sinks.get(addr)
 
     def hasSink(self, addr):
         """Returns True if the specified sink is present.
 
         :param addr: the address (sink_id) of the sink to test
         """
-        for s in self._getSinks():
-            if s['addr'] == addr:
-                return True
-        return False
+        return addr in self._sinks
 
     def addSink(self, sink_info):
         """Adds a sink at the specified sequence number.
 
         A *sink specification* is a dictionary with the following keys:
 
+        * ``pos`` - position in log from which the sink should start
         * ``addr`` - proxy string specifying a servant
         * ``method`` - method to call on the servant
         * ``arg`` - (optional) extra string to pass with every message
@@ -88,10 +129,11 @@ class RepLog(object):
         :param sink_info: (dict) a sink specification
         :param seq: (int) sequence number
         """
-        if self.hasSink(sink_info['addr']):
+        addr = sink_info['addr']
+        if addr in self._sinks:
             return False
-        self._getSinks().append(sink_info)
-        self._saveSinks()
+        sink_info.update(self._sinks._extra)
+        self._sinks[addr] = Relay(**sink_info)
         return True
 
     def removeSink(self, addr):
@@ -101,11 +143,10 @@ class RepLog(object):
 
         :param addr: the address (sink_id) of the sink to remove
         """
-        for i, s in enumerate(list(self._getSinks())):
-            if s['addr'] == addr:
-                del self._sinks[i]
-                return True
-        return False
+        if addr not in self._sinks:
+            return False
+        del self._sinks[addr]
+        return True
 
     def append(self, msg):
         """Appends *msg* to log and push it to all sinks.
@@ -113,8 +154,8 @@ class RepLog(object):
         :param msg: the message to pass
         """
         seq = self._log.append(msg)[0]
-        for sink_info in self._getSinks():
-            self._update(sink_info, seq + 1, msg)
+        for addr in self._sinks.keys():
+            self._sinks[addr].put(seq, msg)
         return seq
 
     def size(self):
@@ -125,26 +166,6 @@ class RepLog(object):
         last = self._log.last()
         return 0 if last is None else last + 1
 
-    def _update(self, sink_info, size, msg):
-        addr = sink_info['addr']
-        if self._updating == addr:
-            return
-        self._updating = addr
-        try:
-            sink_seq = self.getSeq(addr)
-            if sink_seq is None:
-                if size > 1:
-                    return
-                sink_seq = 0
-            if msg is not None and size == sink_seq + 1:
-                self._putMsg(sink_info, sink_seq, msg)
-            elif sink_seq < size:
-                for i, msg in self._log.iteritems(sink_seq):
-                    if not self._putMsg(sink_info, i, msg):
-                        break
-        finally:
-            self._updating = None
-
     def update(self, addr):
         """Brings the specified sink up-to-date (if possible).
 
@@ -153,67 +174,23 @@ class RepLog(object):
         size = self.size()
         if size == 0:
             return
-        sink_info = self.getSink(addr)
-        if sink_info is None:
-            return
-        self._update(sink_info, size, None)
+        self._sinks[addr].put()
 
-    def _putMsg(self, sink_info, seq, msg):
-        try:
-            sink_id = toStr(sink_info['addr'])
-            if 'proxy' not in sink_info:
-                sink_info['proxy'] = self._env.getProxy(sink_id)
-            proxy = sink_info['proxy']
-            method = getattr(proxy, toStr(sink_info['method']))
-            arg = sink_info.get('arg')
-            if arg is None:
-                method(msg)
-            else:
-                method(msg, toStr(arg))
-            self.setSeq(sink_id, seq + 1)
-            return True
-        except:
-            return False
-
-    def _loadSeq(self):
-        try:
-            fh = openLocal(self._env, '%s/seq' % self._path)
-            self._seq = json.load(fh)
-        except IOError:
-            self._seq = {}
-
-    def _saveSeq(self):
-        with openLocal(self._env, '%s/seq' % self._path, 'w') as out:
-            json.dump(self._seq, out)
-
-    def getSeq(self, sink_id):
-        """Get the sequence number of the specified sink.
-
-        Returns None if no such sink exists.
-
-        :param sink_id: the sink whose sequence number is required
-        """
-        if self._seq is None:
-            self._loadSeq()
-        return self._seq.get(sink_id)
-
-    def setSeq(self, sink_id, seq):
+    def setSeq(self, addr, seq):
         """Set the sequence number of the specified sink.
 
         :param sink_id: the sink whose sequence number is to be updated
         :param seq: the index of the next log entry to be pushed
         """
-        if self._seq is None:
-            self._loadSeq()
-        self._seq[sink_id] = seq
-        self._saveSeq()
+        sink = self._sinks[addr]
+        sink._pos = seq
+        sink._save(sink)
 
-    def removeSeq(self, sink_id):
-        """Erases the recorded sequence number of the specified sink.
+    def getSeq(self, addr):
+        """Get the sequence number of the specified sink.
 
-        :param sink_id: the sink whose sequence number is to be discarded
+        Returns None if no such sink exists.
+
+        :param addr: the sink whose sequence number is required
         """
-        if self._seq is None:
-            self._loadSeq()
-        if self._seq.pop(sink_id, None) is not None:
-            self._saveSeq()
+        return self._sinks[addr]._pos
