@@ -56,15 +56,11 @@ class Printer(MasterOrSlave, idemo.Printer):
         """Returns a random 32-bit integer."""
         return random.randint(LO, HI)
 
-    def masterNode_f(self):
-        return self.assertMaster_f().then(self._masterNode)
+    def masterNode_async(self, cb, curr=None):
+        self.assertMaster_f().then(self._masterNode).iceCB(cb)
 
     def _masterNode(self, _=None):
         return self._env.serverId().rsplit('-', 1)[-1]
-
-    def masterNode_async(self, cb, curr=None):
-        # Boilerplate resolving via Future.
-        self.masterNode_f().callback(cb.ice_response, cb.ice_exception)
 
     def serverId(self, curr=None):
         """Returns the server-id."""
@@ -96,4 +92,4 @@ class Printer(MasterOrSlave, idemo.Printer):
 
     def fact_async(self, cb, n, curr=None):
         # This is boilerplate, adapting Ice async to Future.
-        self.fact_f(n).callback(cb.ice_response, cb.ice_exception)
+        self.fact_f(n).iceCB(cb)

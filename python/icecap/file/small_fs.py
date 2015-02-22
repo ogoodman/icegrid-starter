@@ -3,11 +3,11 @@ import os
 import sys
 from icecap import idemo
 from icecap.base.antenna import Antenna, notifyOnline
-from icecap.base.master import findLocal
+from icecap.base.master import findLocal, MasterOrSlave
 from icecap.base.util import openLocal, getAddr
 from icecap.base.rep_log import RepLog
 
-class File(idemo.File):
+class File(idemo.File, MasterOrSlave):
     """A replicated file store for small files.
 
     Files are stored under ``<local-data>/files``, with replication data
@@ -18,27 +18,25 @@ class File(idemo.File):
     :param env: server environment
     """
     def __init__(self, env):
-        self._env = env
+        MasterOrSlave.__init__(self, env)
         self._log = RepLog(env, 'files/.rep')
         self._peers = None
         self._peers_added = False
         env.subscribe('online', self._onOnline)
 
     def _addPeer(self, prx):
-        if isinstance(prx, basestring):
-            addr = prx
-            prx = self._env.getProxy(addr)
-        else:
-            addr = getAddr(prx)
-
-        if self._log.hasSink(addr):
+        if self._log.hasSink(getAddr(prx)):
             return
-        # FIXME: sync should be true iff this server is the master.
-        sync = self._env.serverId() == 'SmallFS-node1'
+        self.isMaster_f().then(self._addNewPeer, prx)
+
+    def _addNewPeer(self, is_master, prx):
+        addr = getAddr(prx)
         seq = self._log.size()
-        if seq > 0 and sync:
+        if seq > 0 and is_master:
+            if isinstance(prx, basestring):
+                prx = self._env.getProxy(addr)
             for path in self._list():
-                data = self.read(path)
+                data = self.readRep(path)
                 prx.update(json.dumps({'path': path, 'data': data}))
         self._log.addSink({'addr': addr, 'method': 'update', 'pos': seq})
 
@@ -58,11 +56,14 @@ class File(idemo.File):
             self._addPeer(addr)
         self._log.update(addr)
 
-    def read(self, path, curr=None):
+    def read_async(self, cb, path, curr=None):
         """Get the contents of the specified file as a string.
 
         :param path: the file to read
         """
+        self.assertMaster_f().then(self.readRep, path).iceCB(cb)
+
+    def readRep(self, path, curr=None):
         assert not path.startswith('.')
         try:
             fh = openLocal(self._env, os.path.join('files', path))
@@ -70,12 +71,15 @@ class File(idemo.File):
             raise idemo.FileNotFound()
         return fh.read()
 
-    def write(self, path, data, curr=None):
+    def write_async(self, cb, path, data, curr=None):
         """Set the contents of the specified file.
 
         :param path: the file to write
         :param data: the data to write
         """
+        self.assertMaster_f().then(self.writeRep, path, data).iceCB(cb)
+
+    def writeRep(self, path, data, curr=None):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join('files', path), 'w') as out:
             out.write(data)
@@ -100,8 +104,11 @@ class File(idemo.File):
             for f in files:
                 yield os.path.join(path, f)[plen:]
 
-    def list(self, curr=None):
+    def list_async(self, cb, curr=None):
         """Returns a list of all files."""
+        self.assertMaster_f().then(self.listRep).iceCB(cb)
+
+    def listRep(self, curr=None):
         return list(self._list())
 
 def server(env):

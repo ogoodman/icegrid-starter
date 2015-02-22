@@ -1,4 +1,5 @@
 import random
+import Ice
 from icecap import ibase
 from icecap.base.util import pcall, pcall_f
 from icecap.base.future import Future
@@ -83,8 +84,8 @@ def mcall(env, proxy, method, *args):
         proxy._master = master = findMaster(env.replicas(proxy))[0]
     try:
         return getattr(master, method)(*args)
-    except ibase.NotMaster:
-        # Probably a stale cached master.
+    except (ibase.NotMaster, Ice.NoEndpointException):
+        # Stale cached master or server offline.
         pass
     proxy._master = master = findMaster(env.replicas(proxy))[0]
     return getattr(master, method)(*args)
@@ -129,10 +130,16 @@ class MasterOrSlave(ibase.MasterOrSlave):
     def assertMaster_f(self):
         """Raises ``NotMaster`` if this servant is not the master."""
         if self._is_master:
-            return Future(True)
+            return Future(None)
         return self.findMaster_f().then(self._assertMasterNow)
 
     def _assertMasterNow(self, _=None):
         """Raises ibase.NotMaster if I am not by now the confirmed master."""
         if not self._is_master:
             raise ibase.NotMaster()
+
+    def isMaster_f(self):
+        """Returns True if this is the master replica."""
+        if self._is_master:
+            return Future(True)
+        return self.findMaster_f().then(lambda m: self._is_master)

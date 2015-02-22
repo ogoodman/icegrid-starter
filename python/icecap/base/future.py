@@ -84,7 +84,7 @@ class Future(object):
 
     def __init__(self, *result):
         self._cond = threading.Condition()
-        self._result = result or None
+        self._result = () if result == (None,) else result or None
         self._exc = None
         self._cb = None
         self._eb = None
@@ -125,6 +125,17 @@ class Future(object):
             else:
                 eb(self._exc)
                 self._eb = True
+
+    def iceCB(self, cb):
+        """Provide an Ice callback object to receive the result or exception.
+
+        This is simply a shortcut for::
+
+            self.callbacks(cb.ice_response, cb.ice_exception)
+
+        :param cb: an Ice callback object
+        """
+        self.callback(cb.ice_response, cb.ice_exception)
 
     def wait(self, timeout=None):
         """Wait until the result becomes available and return it.
