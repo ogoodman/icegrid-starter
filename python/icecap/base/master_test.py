@@ -4,14 +4,16 @@ from master import MasterOrSlave, mcall
 
 class Servant(MasterOrSlave):
     def masterNode_async(self, cb, curr=None):
-        self.masterNode_f().callback(cb.ice_response, cb.ice_exception)
+        self.masterNode_f().iceCB(cb)
     def masterNode_f(self):
         return self.assertMaster_f().then(self._masterNode)
     def _masterNode(self, _=None):
         return self._env.serverId().rsplit('-', 1)[-1]
 
     def findMaster_async(self, cb, curr=None):
-        self.findMaster_f().callback(cb.ice_response, cb.ice_exception)
+        self.findMaster_f().iceCB(cb)
+    def isMaster_async(self, cb, curr=None):
+        return self.isMaster_f().iceCB(cb)
 
     def addOne(self, n):
         return n + 1
@@ -47,9 +49,10 @@ class MasterTest(unittest.TestCase):
         # The master should not have changed.
         self.assertEqual(master, mcall(e, p, 'masterNode'))
 
-        # For coverage of MasterOrSlave.findMaster.
+        # For coverage.
         mprx = mcall(e, p, 'findMaster')
         self.assertEqual(mprx.ice_getAdapterId(), 'Demo-%s.DemoRep' % master)
+        self.assertEqual(mprx.isMaster(), True)
 
         # The master may change when it is stopped; keep trying until it does.
         for i in xrange(100):

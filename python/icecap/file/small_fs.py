@@ -4,7 +4,7 @@ import sys
 from icecap import idemo
 from icecap.base.antenna import Antenna, notifyOnline
 from icecap.base.master import findLocal, MasterOrSlave
-from icecap.base.util import openLocal, getAddr, adapterName
+from icecap.base.util import openLocal, getAddr, getServer
 from icecap.base.rep_log import RepLog
 
 class File(idemo.File, MasterOrSlave):
@@ -20,30 +20,50 @@ class File(idemo.File, MasterOrSlave):
     def __init__(self, env):
         MasterOrSlave.__init__(self, env)
         self._log = RepLog(env, 'files/.rep')
+        self._path = os.path.join(env.dataDir(), 'files')
+        self._new_replica = len(os.listdir(self._path)) < 2
         self._peers_added = False
         env.subscribe('online', self._onOnline)
-
-    def _addPeer(self, prx):
-        if self._log.hasSink(getAddr(prx)):
-            return
-        self.isMaster_f().then(self._addNewPeer, prx)
-
-    def _addNewPeer(self, is_master, prx):
-        addr = getAddr(prx)
-        seq = self._log.size()
-        if seq > 0 and is_master:
-            if isinstance(prx, basestring):
-                prx = self._env.getProxy(addr)
-            for path in self._list():
-                data = self.readRep(path)
-                prx.update(json.dumps({'path': path, 'data': data}))
-        self._log.addSink({'addr': addr, 'method': 'update', 'pos': seq})
 
     def _addPeers(self):
         if not self._peers_added:
             for p in findLocal(self._env, self._proxy)[1]:
                 self._addPeer(p)
             self._peers_added = True
+
+    def _addPeer(self, prx):
+        if self._log.hasSink(getAddr(prx)):
+            return
+        self.isMaster_f().then(lambda is_m: is_m and self._addNewPeer(prx))
+
+    def _addNewPeer(self, prx):
+        """Adds a new replica to the group.
+
+        This must run only on the master. It adds bi-directional links between
+        the new replica at *prx* and all existing replicas and populates
+        the new replica with all existing file.
+
+        :param prx: proxy or proxy string for the new replica
+        """
+        addr = getAddr(prx)
+        if isinstance(prx, basestring):
+            prx = self._env.getProxy(addr, self._proxy)
+        for a in self._log.sinks():
+            p = self._env.getProxy(a, self._proxy)
+            p.addPeer(addr)
+            prx.addPeer(a)
+        for path in self._list():
+            data = self.readRep(path)
+            prx.update(json.dumps({'path': path, 'data': data}))
+        self.addPeer(addr)
+        prx.addPeer(getAddr(findLocal(self._env, self._proxy)[0]))
+
+    def addPeer(self, addr, curr=None):
+        """Adds addr as a replica of this one, at the head of the log.
+
+        :param addr: proxy string of the replica to add
+        """
+        self._log.addSink({'addr': addr, 'method': 'update'})
 
     def _onOnline(self, server_id):
         """Respond to a peer coming online."""
@@ -53,7 +73,18 @@ class File(idemo.File, MasterOrSlave):
         addr = 'file@%s.%sRep' % (server_id, server)
         if not self._log.hasSink(addr):
             self._addPeer(addr)
-        self._log.update(addr)
+        if self._log.hasSink(addr):
+            self._log.update(addr)
+
+    def masterState(self, curr=None):
+        """Returns a list of *int64* giving the master priority of this replica.
+
+        The first entry is 1 if this replica is master, 0 otherwise. The
+        second entry gives priority to replicas that have already been
+        used. The last entry is a random number to use as a tie-breaker.
+        """
+        m_count = 1 if self._is_master else 0
+        return [m_count, 0 if self._new_replica else 1, self._master_priority]
 
     def read_async(self, cb, path, curr=None):
         """Get the contents of the specified file as a string.

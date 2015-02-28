@@ -1,6 +1,5 @@
 import json
 import os
-from icecap.base.util import openLocal
 from icecap.base.cap_dict import CapDict
 from icecap.data.data_log import DataLog
 from icecap.data.file_dict import FileDict
@@ -136,6 +135,8 @@ class RepLog(object):
         addr = sink_info['addr']
         if addr in self._sinks:
             return False
+        if 'pos' not in sink_info:
+            sink_info['pos'] = self.size()
         sink_info.update(self._sinks._extra)
         self._sinks[addr] = Relay(**sink_info)
         return True

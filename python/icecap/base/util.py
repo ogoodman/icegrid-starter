@@ -28,19 +28,30 @@ def getNode(prx):
 
     :param prx: a proxy or proxy string
     """
-    addr = getAddr(prx)
-    return addr.split('@', 1)[-1].split('.', 1)[0].rsplit('-', 1)[-1]
+    return getAdapterId(prx).split('.', 1)[0].rsplit('-', 1)[-1]
 
-def adapterName(prx):
-    """Gets the adapter name from a proxy or proxy string.
+def getServer(prx):
+    """Gets the server name from a proxy or proxy string.
+
+    :param prx: a proxy or proxy string
+    """
+    return getAdapterId(prx).split('.', 1)[0].rsplit('-', 1)[0]
+
+def getAdapterId(prx):
+    """Gets the adapter id from a proxy or proxy string.
 
     :param prx: a proxy or proxy string
     """
     if isinstance(prx, basestring):
-        a_id = prx.split('@', 1)[-1]
-    else:
-        a_id = prx.ice_getAdapterId()
-    a_id = a_id.split('.', 1)[-1]
+        return prx.split('@', 1)[-1]
+    return prx.ice_getAdapterId()
+
+def getAdapterName(prx):
+    """Gets the adapter name from a proxy or proxy string.
+
+    :param prx: a proxy or proxy string
+    """
+    a_id = getAdapterId(prx).split('.', 1)[-1]
     if a_id.endswith('Rep'):
         return a_id[:-3]
     if a_id.endswith('Group'):

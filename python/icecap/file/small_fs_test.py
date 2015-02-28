@@ -17,6 +17,7 @@ class FileTest(unittest.TestCase):
         fp2 = env.getProxy('file@SmallFS-node2.SmallFSRep')
 
         mcall(env, fp, 'write', 'fred', 'hi')
+
         self.assertEqual(mcall(env, fp, 'list'), ['fred'])
         self.assertEqual(mcall(env, fp, 'read', 'fred'), 'hi')
 
@@ -29,6 +30,7 @@ class FileTest(unittest.TestCase):
         grid.disable('SmallFS-node2')
 
         mcall(env, fp, 'write', 'fred', 'lo') # node1 becomes master
+        mcall(env, fp, 'write', 'barney', 'dino')
 
         grid.enable('SmallFS-node2')
 
@@ -38,17 +40,15 @@ class FileTest(unittest.TestCase):
         # Starting SmallFS-node3 will cause a full sync from SmallFS-node1.
         grid.addServer('SmallFS-node3', server)
 
-        # FIXME: if we take the previous master offline now, node3 might
-        # be chosen as master which would be wrong because it has no data.
-        # grid.stopServer('SmallFS-node1')
+        grid.stopServer('SmallFS-node1')
 
         fp = env.getProxy('file@SmallFSGroup')
-
-        self.assertEqual(mcall(env, fp, 'list'), ['fred'])
+        self.assertEqual(set(mcall(env, fp, 'list')), {'fred', 'barney'})
+        mcall(env, fp, 'write', 'fred', 'go') # force node3 to be populated.
 
         fp3 = env.getProxy('file@SmallFS-node3.SmallFSRep')
-        self.assertEqual(fp3.listRep(), ['fred'])
-        self.assertEqual(fp3.readRep('fred'), 'lo')
+        self.assertEqual(set(fp3.listRep()), {'fred', 'barney'})
+        self.assertEqual(fp3.readRep('fred'), 'go')
 
         fp2.writeRep('barney', 'hi fred')
         self.assertEqual(fp3.readRep('barney'), 'hi fred')

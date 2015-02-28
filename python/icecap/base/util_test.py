@@ -32,7 +32,18 @@ class UtilTest(unittest.TestCase):
         self.assertEqual(util.getAddr(unicode(addr)), addr)
 
         self.assertEqual(util.getNode(prx), 'node1')
+        self.assertEqual(util.getNode(addr), 'node1')
 
+        self.assertEqual(util.getAdapterId(prx), 'Demo-node1.DemoRep')
+        self.assertEqual(util.getAdapterId(addr), 'Demo-node1.DemoRep')
+        self.assertEqual(util.getServer(prx), 'Demo')
+        self.assertEqual(util.getServer(addr), 'Demo')
+
+        self.assertEqual(util.getAdapterName(prx), 'Demo')
+        self.assertEqual(util.getAdapterName(addr), 'Demo')
+        self.assertEqual(util.getAdapterName('file@DemoGroup'), 'Demo')
+        self.assertEqual(util.getAdapterName('file@Demo-node1.Demo'), 'Demo')
+        
         gprx = env.getProxy('file@DemoGroup')
         self.assertEqual(util.getReplicaAddr(gprx, 'node1'), 'file@Demo-node1.DemoRep')
 

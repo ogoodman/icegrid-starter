@@ -21,6 +21,7 @@ module icecap {
             ["amd"] Strings list() throws ibase::NotMaster;
             ["amd"] string read(string path) throws FileNotFound, ibase::NotMaster;
             ["amd"] void write(string path, string data) throws ibase::NotMaster;
+            void addPeer(string addr); // replication
             void update(string info); // replication
         };
     };

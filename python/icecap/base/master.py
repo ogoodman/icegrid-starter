@@ -57,7 +57,6 @@ def findMaster_f(proxies):
 def _chooseMaster(master_info):
     """Selects the best master from a list of masterState results."""
     best_p = None
-    master = False
     max_priority = [-1]
     for p, priority, err in master_info:
         if err is not None:
@@ -65,8 +64,6 @@ def _chooseMaster(master_info):
         if best_p is None or priority > max_priority:
             best_p = p
             max_priority = priority
-        if master:
-            break
     return best_p, max_priority
 
 def mcall(env, proxy, method, *args):
