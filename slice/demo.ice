@@ -11,18 +11,5 @@ module icecap {
             ["amd"] string masterNode() throws ibase::NotMaster;
             ["amd"] int fact(int n);
         };
-
-        exception FileNotFound {
-        };
-
-        sequence<string> Strings;
-
-        interface File extends ibase::MasterOrSlave {
-            ["amd"] Strings list() throws ibase::NotMaster;
-            ["amd"] string read(string path) throws FileNotFound, ibase::NotMaster;
-            ["amd"] void write(string path, string data) throws ibase::NotMaster;
-            void addPeer(string addr); // replication
-            void update(string info); // replication
-        };
     };
 };

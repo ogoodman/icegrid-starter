@@ -6,7 +6,10 @@ services:
     setup: icecap.demo.server.init
     replicated: both
   - name: SmallFS
-    setup: icecap.file.small_fs.server
+    setup: icecap.storage.small_fs.server
+    replicated: true
+  - name: DataManager
+    setup: icecap.storage.data_manager.server
     replicated: true
 
 # Used by documentation generator
@@ -36,8 +39,8 @@ autodoc:
   icecap.demo.printer: A simple demo servant
   icecap.demo.server: Demo server
 
-  icecap.file: File storage
-  icecap.file.small_fs: A replicated file store
+  icecap.storage: Data storage
+  icecap.storage.small_fs: A replicated file store
 
   icecap.ti: Test infrastructure
   icecap.ti.fake_grid: Fake grid and resource factory

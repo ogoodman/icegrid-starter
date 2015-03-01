@@ -30,7 +30,9 @@ import sys
 import Ice
 import IceGrid
 import icegrid_config
-from icecap.base.util import importSymbol
+from icecap.base.future import Future
+from icecap.base.thread_pool import ThreadPool
+from icecap.base.util import importSymbol, call_f
 from icecap.base.env_base import EnvBase
 
 def toMostDerived(ob):
@@ -60,6 +62,7 @@ class Env(EnvBase):
         self._ic = None
         self._adapters = {}
         self._query = None
+        self._work = ThreadPool(1)
 
     def _communicator(self):
         """Returns the Ice.Communicator for the configured grid."""
@@ -75,6 +78,16 @@ class Env(EnvBase):
     def dataDir(self):
         """Returns the local data directory path."""
         return icegrid_config.DATA_ROOT
+
+    def do(self, func, *args):
+        """Runs func(*args) in the work queue.
+
+        The work queue is a single thread.
+
+        :param func: a function to call
+        :param args: arguments for *func*
+        """
+        self._work.do(func, *args)
 
     def getProxy(self, addr, type=None, one_way=False):
         """Gets a proxy for the servant (if any) at the specified address.
@@ -124,10 +137,27 @@ class Env(EnvBase):
         :param proxy: a replicated proxy
         """
         if self._query is None:
-            self._query = self.getProxy('IceGrid/Query')
-        if refresh or getattr(proxy, '_replicas', None) is None:
+            self._query = self.getProxy('IceGrid/Query', IceGrid.QueryPrx)
+        if refresh or not hasattr(proxy, '_replicas'):
             proxy._replicas = [proxy.uncheckedCast(p) for p in self._query.findAllReplicas(proxy)]
         return proxy._replicas
+
+    def replicas_f(self, proxy, refresh=False):
+        """Returns a list containing all registered replicas of the proxy.
+
+        The list of proxies is cached on the proxy as proxy._proxies so
+        that repeat calls will be faster.
+
+        :param proxy: a replicated proxy
+        """
+        def set_replicas(replicas):
+            proxy._replicas = [proxy.uncheckedCast(p) for p in replicas]
+            return proxy._replicas
+        if self._query is None:
+            self._query = self.getProxy('IceGrid/Query', IceGrid.QueryPrx)
+        if refresh or not hasattr(proxy, '_replicas'):
+            return call_f(self._query, 'findAllReplicas', proxy).then(set_replicas)
+        return Future(proxy._replicas)
 
     def serve(self):
         """Activates all adapters then waits for the shutdown signal.

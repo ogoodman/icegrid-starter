@@ -1,4 +1,5 @@
 import sys
+import Ice
 import IceGrid
 from icecap import ibase
 

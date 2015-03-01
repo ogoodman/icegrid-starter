@@ -23,6 +23,12 @@ class EnvTest(unittest.TestCase):
         replicas = env.replicas(printer)
         self.assertEqual(len(replicas), 2)
 
+        env._query = None
+        replicas_f = env.replicas_f(printer, refresh=True)
+        self.assertEqual(len(replicas_f.wait()), 2)
+        replicas_f = env.replicas_f(printer)
+        self.assertEqual(len(replicas_f.wait()), 2)
+
         # Test 'server_id' on the server.
         self.assertEqual(replicas[0].serverId(), 'Demo-node1')
 
@@ -42,6 +48,9 @@ class EnvTest(unittest.TestCase):
         grid.stopServer('Demo-node1')
         grid.stopServer('Demo-node2')
         grid.stopServer('Demo-node1') # no error if already stopped.
+
+        f = env.do_f(lambda a: a+2, 3)
+        self.assertEqual(f.wait(), 5)
 
     def testDataDir(self):
         env = Env()

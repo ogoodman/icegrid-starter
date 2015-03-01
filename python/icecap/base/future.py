@@ -245,6 +245,22 @@ class Future(object):
         self.callback(chain, new.error)
         return new
 
+    def catch(self, errors, func, *args):
+        """Make a new Future which passes any of the listed errors to func.
+
+        :param errors: an exception of tuple of exceptions
+        :param func: a function to pass any exception to
+        :param args: additional arguments for *func*
+        """
+        new = Future()
+        def chain(exc):
+            if isinstance(exc, errors):
+                new.run(func, exc, *args)
+            else:
+                new.error(exc)
+        self.callback(new.resolve, chain)
+        return new
+
     def __del__(self):
         """Prints a message to ``sys.stderr`` if an exception was set but never handled.
 

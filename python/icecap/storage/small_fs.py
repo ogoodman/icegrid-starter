@@ -1,19 +1,18 @@
 import json
 import os
 import sys
-from icecap import idemo
+import shutil
+from icecap import istorage
 from icecap.base.antenna import Antenna, notifyOnline
-from icecap.base.master import findLocal, MasterOrSlave
+from icecap.base.master import findLocal, MasterOrSlave, mcall_f
 from icecap.base.util import openLocal, getAddr, getServer
 from icecap.base.rep_log import RepLog
 
-class File(idemo.File, MasterOrSlave):
+class File(istorage.File, MasterOrSlave):
     """A replicated file store for small files.
 
     Files are stored under ``<local-data>/files``, with replication data
     under ``<local-data>/files/.rep``.
-
-    .. note:: Work in progress. 
 
     :param env: server environment
     """
@@ -22,48 +21,49 @@ class File(idemo.File, MasterOrSlave):
         self._log = RepLog(env, 'files/.rep')
         self._path = os.path.join(env.dataDir(), 'files')
         self._new_replica = len(os.listdir(self._path)) < 2
-        self._peers_added = False
-        env.subscribe('online', self._onOnline)
+        self._env.onActivation(self._register)
+        self._env.subscribe('online', self._onOnline)
 
-    def _addPeers(self):
-        if not self._peers_added:
-            for p in findLocal(self._env, self._proxy)[1]:
-                self._addPeer(p)
-            self._peers_added = True
-
-    def _addPeer(self, prx):
-        if self._log.hasSink(getAddr(prx)):
+    def _register(self):
+        reg_marker = os.path.join(self._path, '.rep/registered')
+        if os.path.exists(reg_marker):
             return
-        self.isMaster_f().then(lambda is_m: is_m and self._addNewPeer(prx))
+        def done():
+            open(reg_marker, 'w').write('')
+        name, node = self._env.serverId().split('-', 1)
+        addr = 'file@%s-%s.%sRep' % (name, node, name)
+        mgr = self._env.getProxy('file@DataManagerGroup', istorage.DataManagerPrx)
+        mcall_f(self._env, mgr, 'register', addr).then(done)
 
-    def _addNewPeer(self, prx):
-        """Adds a new replica to the group.
-
-        This must run only on the master. It adds bi-directional links between
-        the new replica at *prx* and all existing replicas and populates
-        the new replica with all existing file.
-
-        :param prx: proxy or proxy string for the new replica
-        """
-        addr = getAddr(prx)
-        if isinstance(prx, basestring):
-            prx = self._env.getProxy(addr, self._proxy)
-        for a in self._log.sinks():
-            p = self._env.getProxy(a, self._proxy)
-            p.addPeer(addr)
-            prx.addPeer(a)
-        for path in self._list():
-            data = self.readRep(path)
-            prx.update(json.dumps({'path': path, 'data': data}))
-        self.addPeer(addr)
-        prx.addPeer(getAddr(findLocal(self._env, self._proxy)[0]))
-
-    def addPeer(self, addr, curr=None):
+    def addPeer(self, addr, sync, curr=None):
         """Adds addr as a replica of this one, at the head of the log.
 
         :param addr: proxy string of the replica to add
         """
+        if sync:
+            prx = self._env.getProxy(addr, self._proxy)
+            for path in self._list():
+                data = self.readRep(path)
+                prx.update(json.dumps({'path': path, 'data': data}))
         self._log.addSink({'addr': addr, 'method': 'update'})
+
+    def removePeer(self, addr, curr=None):
+        """Removes addr as a replica of this one.
+
+        :param addr: proxy string of the replica to remove
+        """
+        self._log.removeSink(addr)
+
+    def peers(self, curr=None):
+        """Returns a list of peers this replica replicates to."""
+        return self._log.sinks()
+
+    def removeData(self, curr=None):
+        """Removes all data from this replica."""
+        assert not self._is_master
+        shutil.rmtree(self._path)
+        self._log = RepLog(self._env, 'files/.rep')
+        self._new_replica = True
 
     def _onOnline(self, server_id):
         """Respond to a peer coming online."""
@@ -71,8 +71,6 @@ class File(idemo.File, MasterOrSlave):
         if server != self._env.serverId().split('-', 1)[0]:
             return # nothing to do with us.
         addr = 'file@%s.%sRep' % (server_id, server)
-        if not self._log.hasSink(addr):
-            self._addPeer(addr)
         if self._log.hasSink(addr):
             self._log.update(addr)
 
@@ -98,7 +96,7 @@ class File(idemo.File, MasterOrSlave):
         try:
             fh = openLocal(self._env, os.path.join('files', path))
         except IOError:
-            raise idemo.FileNotFound()
+            raise istorage.FileNotFound()
         return fh.read()
 
     def write_async(self, cb, path, data, curr=None):
@@ -113,7 +111,6 @@ class File(idemo.File, MasterOrSlave):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join('files', path), 'w') as out:
             out.write(data)
-        self._addPeers()
         self._log.append(json.dumps({'path':path, 'data':data}))
 
     def update(self, info_s, curr=None):

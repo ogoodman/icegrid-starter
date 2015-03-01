@@ -152,6 +152,37 @@ class FutureTest(unittest.TestCase):
         r.resolve('x')
         self.assertEquals(g.wait(), 'x')
 
+    def testCatch(self):
+        f = Future()
+        g = f.catch(ValueError, lambda e: 'Ok')
+        f.error(ValueError('whatever'))
+        self.assertEquals(g.wait(), 'Ok')
+
+        f = Future()
+        g = f.catch(ValueError, lambda e: 'Ok')
+        f.resolve('Original')
+        self.assertEquals(g.wait(), 'Original')
+
+        f = Future()
+        g = f.catch(ValueError, lambda e: 'Ok')
+        f.error(KeyError('foo'))
+        self.assertRaises(KeyError, g.wait)
+
+        f = Future()
+        g = f.catch((KeyError, ValueError), lambda e: 'Ok')
+        f.error(KeyError('foo'))
+        self.assertEqual(g.wait(), 'Ok')
+
+        f = Future()
+        g = f.catch(ValueError, lambda e, a: a, 42)
+        f.error(ValueError('whatever'))
+        self.assertEquals(g.wait(), 42)
+
+        f = Future()
+        g = f.catch(ValueError, lambda e: 'Ok')
+        f.resolve()
+        self.assertEquals(g.wait(), None)
+
     def testDiagnostic(self):
         def tryToLoseAnException():
             f = Future()

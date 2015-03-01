@@ -1,6 +1,6 @@
 import unittest
 from icecap.ti.fake_grid import FakeGrid
-from master import MasterOrSlave, mcall
+from master import MasterOrSlave, mcall, mcall_f
 
 class Servant(MasterOrSlave):
     def masterNode_async(self, cb, curr=None):
@@ -52,7 +52,7 @@ class MasterTest(unittest.TestCase):
         # For coverage.
         mprx = mcall(e, p, 'findMaster')
         self.assertEqual(mprx.ice_getAdapterId(), 'Demo-%s.DemoRep' % master)
-        self.assertEqual(mprx.isMaster(), True)
+        self.assertTrue(mprx.isMaster())
 
         # The master may change when it is stopped; keep trying until it does.
         for i in xrange(100):
@@ -67,7 +67,8 @@ class MasterTest(unittest.TestCase):
             self.assertFalse('Master should have changed and did not.')
 
         # Make sure p2 tracks the change.
-        self.assertEqual(new_master, mcall(e, p2, 'masterNode'))
+        self.assertEqual(new_master, mcall_f(e, p2, 'masterNode').wait())
+        self.assertFalse(mprx.isMaster())
 
     def testSparse(self):
         grid = FakeGrid()

@@ -1,7 +1,7 @@
 import random
 import Ice
 from icecap import ibase
-from icecap.base.util import pcall, pcall_f
+from icecap.base.util import pcall, pcall_f, call_f
 from icecap.base.future import Future
 
 HI = 2**63-1
@@ -85,6 +85,30 @@ def mcall(env, proxy, method, *args):
         pass
     proxy._master = master = findMaster(env.replicas(proxy))[0]
     return getattr(master, method)(*args)
+
+def mcall_f(env, proxy, method, *args):
+    """Call the given method on the master.
+
+    :param env: the environment
+    :param proxy: a proxy for a ``MasterOrSlave`` replica group
+    :param method: method to call (as a string)
+    :param *args: arguments to pass
+    """
+    def set_master(master, priority):
+        proxy._master = master
+        return master
+
+    def get_master():
+        master = getattr(proxy, '_master', None)
+        if master is None:
+            master = env.replicas_f(proxy).then(findMaster_f).then(set_master)
+        return master
+
+    def retry(exc):
+        return env.replicas_f(proxy).then(findMaster_f).then(set_master).then(call_f, method, *args)
+
+    errors = (ibase.NotMaster, Ice.NoEndpointException)
+    return Future(None).then(get_master).then(call_f, method, *args).catch(errors, retry)
 
 class MasterOrSlave(ibase.MasterOrSlave):
     """A ``MasterOrSlave`` is a servant base class which tracks the

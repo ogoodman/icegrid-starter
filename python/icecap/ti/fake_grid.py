@@ -32,7 +32,7 @@ import sys
 import traceback
 import Ice
 from icecap.base.env_base import EnvBase
-from icecap.base.future import argTupToRv, rvToArgTup
+from icecap.base.future import Future, argTupToRv, rvToArgTup
 
 DATA_DIR = '/tmp/fake_grid_data'
 
@@ -60,6 +60,16 @@ class FakeEnv(EnvBase):
             if not os.path.exists(self._data_dir):
                 os.mkdir(self._data_dir)
         return self._data_dir
+
+    def do(self, func, *args):
+        """Runs func(*args) in the work queue.
+
+        The work queue is a single thread.
+
+        :param func: a function to call
+        :param args: arguments for *func*
+        """
+        func(*args)
 
     def getProxy(self, addr, type=None, one_way=False):
         """Obtain a proxy for a servant the shared grid.
@@ -111,6 +121,16 @@ class FakeEnv(EnvBase):
         if refresh or not hasattr(proxy, '_replicas'):
             proxy._replicas = self._grid.replicas(proxy._addr)
         return proxy._replicas
+
+    def replicas_f(self, proxy, refresh=False):
+        """Returns a list containing all registered replicas of the proxy.
+
+        The list of proxies is cached on the proxy as proxy._proxies so
+        that repeat calls will be faster.
+
+        :param proxy: a replicated proxy
+        """
+        return Future(self.replicas(proxy, refresh))
 
     def serverId(self):
         """Returns the server-id of this ``FakeEnv``."""
@@ -365,7 +385,12 @@ class FakeProxy(object):
 
         :param name: the attribute to check
         """
-        servant = self._servant(step=False)
+        try:
+            servant = self._servant(step=False)
+        except Ice.ObjectNotExistException:
+            if self._one_way:
+                return
+            raise
         if '_' in name:
             raise AttributeError(ATT_ERR_MSG % (type(servant), name))
         for n in (name, name + '_async'):
@@ -382,7 +407,12 @@ class FakeProxy(object):
         return self._grid.get_servant(self._addr, step)
 
     def _call(self, name, *args):
-        servant = self._servant()
+        try:
+            servant = self._servant()
+        except Ice.ObjectNotExistException:
+            if self._one_way:
+                return
+            raise
         method = getattr(servant, name + '_async', None)
         if method is not None:
             cb = FakeCB()
