@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import traceback
 from icecap.base.future import Future, argTupToRv
 from cStringIO import StringIO
@@ -87,6 +88,26 @@ def grabOutput(func, *args):
     o, e = sys.stdout, sys.stderr
     sys.stdout, sys.stderr = ko, ke
     return o.getvalue(), e.getvalue()
+
+def sHash(s):
+    """String hash function given by checksum of bytes mod 256.
+
+    :param s: the string to compute a hash of
+    """
+    return sum(map(ord, s)) % 256
+
+def matchBits(val, bits):
+    """Returns true if bits is a reversed binary representation of the rightmost bits of val.
+
+    This has the property that if S is a set of integers matching b then
+    every integer in S either matches b + '0' or b + '1'.
+
+    :param val: an int to test
+    :param bits: a string of 0's and 1's.
+    """
+    mask = (1 << len(bits)) - 1
+    mval = int('0' + bits[::-1], 2)
+    return val & mask == mval
 
 def importSymbol(import_name):
     """Dynamically imports the specified object.
@@ -182,3 +203,14 @@ def pcall_f(proxies, method, *args):
     if expected == 0:
         f.resolve([])
     return f
+
+def timeCall(func, *args):
+    """Prints the time taken to call ``func(*args)`` and returns the result.
+
+    :param func: function to call
+    :param args: arguments to *func*
+    """
+    t0 = time.time()
+    r = func(*args)
+    print 'time:', time.time() - t0
+    return r
