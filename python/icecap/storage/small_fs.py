@@ -1,4 +1,4 @@
-import json
+import simplejson as json
 import os
 import sys
 import shutil
@@ -35,10 +35,12 @@ class File(istorage.File, MasterOrSlave):
         mgr = self._env.getProxy('file@DataManagerGroup', istorage.DataManagerPrx)
         mcall_f(self._env, mgr, 'register', addr).then(done)
 
-    def addPeer(self, addr, sync, curr=None):
+    def addPeer(self, shard, addr, sync, curr=None):
         """Adds addr as a replica of this one, at the head of the log.
 
+        :param shard: not used (SmallFS has only one shard)
         :param addr: proxy string of the replica to add
+        :param sync: (bool) whether to sync data from here to addr
         """
         if sync:
             prx = self._env.getProxy(addr, self._proxy)
@@ -47,9 +49,10 @@ class File(istorage.File, MasterOrSlave):
                 prx.update(json.dumps({'path': path, 'data': data}))
         self._log.addSink({'addr': addr, 'method': 'update'})
 
-    def removePeer(self, addr, curr=None):
+    def removePeer(self, shard, addr, curr=None):
         """Removes addr as a replica of this one.
 
+        :param shard: not used (SmallFS has only one shard)
         :param addr: proxy string of the replica to remove
         """
         self._log.removeSink(addr)
@@ -58,9 +61,10 @@ class File(istorage.File, MasterOrSlave):
         """Returns a list of peers this replica replicates to."""
         return self._log.sinks()
 
-    def removeData(self, curr=None):
+    def removeData(self, shard, curr=None):
         """Removes all data from this replica."""
         assert not self._is_master
+        assert shard == ''
         shutil.rmtree(self._path)
         self._log = RepLog(self._env, 'files/.rep')
         self._new_replica = True
@@ -83,6 +87,18 @@ class File(istorage.File, MasterOrSlave):
         """
         m_count = 1 if self._is_master else 0
         return [m_count, 0 if self._new_replica else 1, self._master_priority]
+
+    def getState(self, curr=None):
+        """Returns the replication state of this data replica.
+
+        The state takes the form::
+
+            {'shards': {'': {'replicas': [r0, r1,], 'priority': [p0, p1,]}}}
+
+        at least in the case of a SmallFS replica which only ever has the ``''`` shard.
+        """
+        shard = {'replicas': self.peers(), 'priority': self.masterState()}
+        return json.dumps({'shards': {'': shard}})
 
     def read_async(self, cb, path, curr=None):
         """Get the contents of the specified file as a string.
@@ -111,7 +127,7 @@ class File(istorage.File, MasterOrSlave):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join('files', path), 'w') as out:
             out.write(data)
-        self._log.append(json.dumps({'path':path, 'data':data}))
+        self._env.do(self._log.append, json.dumps({'path':path, 'data':data}))
 
     def update(self, info_s, curr=None):
         """For replication only: applies the supplied json-encoded update.

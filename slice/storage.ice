@@ -18,13 +18,14 @@ module icecap {
             ["amd"] void write(string path, string data) throws ibase::NotMaster;
             // debugging
             string readRep(string path) throws FileNotFound;
+            void writeRep(string path, string data);
             Strings listRep();
             // replication
             void update(string info);
-            Strings peers();
-            void addPeer(string addr, bool sync);
-            void removePeer(string addr);
-            void removeData();
+            void addPeer(string shard, string addr, bool sync);
+            void removePeer(string shard, string addr);
+            void removeData(string shard);
+            string getState();
         };
     };
 };
