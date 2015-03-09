@@ -1,5 +1,7 @@
 import json
 import os
+import sys
+import traceback
 from icecap.base.cap_dict import CapDict
 from icecap.data.data_log import DataLog
 from icecap.data.file_dict import FileDict
@@ -26,6 +28,8 @@ class Relay(object):
         self._arg = arg
         self._remote = None
         self._updating = False
+        self._iter = None
+        self._seq = None
 
     def put(self, seq=None, msg=None):
         """Wake the relay to start sending messages.
@@ -44,32 +48,50 @@ class Relay(object):
         if self._updating:
             return
         self._updating = True
-        if seq is None:
-            seq = self._log.last() or 0
-        try:
-            if msg is not None and self._pos == seq:
-                self._putMsg(seq, msg)
-            elif self._pos <= seq:
-                for i, msg in self._log.iteritems(self._pos):
-                    if not self._putMsg(i, msg):
-                        break
-        finally:
-            self._updating = False
-
-    def _putMsg(self, seq, msg):
         try:
             if self._remote is None:
                 proxy = self._env.getProxy(self._addr)
-                self._remote = getattr(proxy, self._method)
-            if self._arg is None:
-                self._remote(msg)
-            else:
-                self._remote(msg, self._arg)
-            self._pos = seq + 1
-            self._save(self)
-            return True
+                self._remote = getattr(proxy, 'begin_' + self._method)
+            if self._iter is None and (msg is None or self._pos != seq):
+                self._iter = self._log.iteritems(self._pos)
+            if self._iter is not None:
+                seq, msg = self._iter.next()
+            self._seq = seq
+            self._putMsg(msg)
+        except StopIteration:
+            self._iter = None
+            self._updating = False
         except:
-            return False
+            traceback.print_exc()
+            self._iter = None
+            self._updating = False
+
+    def _putMsg(self, msg):
+        if self._arg is None:
+            self._remote(msg, self._putOk, self._putErr)
+        else:
+            self._remote(msg, self._arg, self._putOk, self._putErr)
+
+    def _putOk(self, *_):
+        self._pos = self._seq + 1
+        self._save(self)
+        if self._iter is None:
+            self._updating = False
+        else:
+            self._env.do(self._putNext)
+
+    def _putErr(self, exc):
+        self._iter = None
+        self._updating = False
+        # print >>sys.stderr, 'Exception in relay', exc
+
+    def _putNext(self):
+        try:
+            self._seq, msg = self._iter.next()
+            self._putMsg(msg)
+        except StopIteration:
+            self._iter = None
+            self._updating = False
 
 class RepLog(object):
     """A ``RepLog`` logs event messages and passes them to followers in order.

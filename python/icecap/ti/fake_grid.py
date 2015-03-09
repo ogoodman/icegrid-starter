@@ -61,7 +61,7 @@ class FakeEnv(EnvBase):
                 os.mkdir(self._data_dir)
         return self._data_dir
 
-    def do(self, func, *args):
+    def do(self, func, *args, **kw):
         """Runs func(*args) in the work queue.
 
         The work queue is a single thread.
@@ -69,7 +69,7 @@ class FakeEnv(EnvBase):
         :param func: a function to call
         :param args: arguments for *func*
         """
-        func(*args)
+        func(*args, **kw)
 
     def getProxy(self, addr, type=None, one_way=False):
         """Obtain a proxy for a servant the shared grid.

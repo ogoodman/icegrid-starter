@@ -1,6 +1,7 @@
 """Proxy wrapper to handle interaction with DataNodes."""
 
 import simplejson as json
+from icecap import ibase
 from icecap.base.util import sHash, pcall, getAddr
 
 def getState(replicas):
@@ -56,7 +57,21 @@ def getMaster(shard_state):
             m_addr = addr
     return m_addr
 
+# NOTE: currently only 'read' and 'write' are supported. In future different DataNode
+# types will require other methods.
+
 class DataClient(object):
+    """A DataClient directs calls to the correct replica in a group of DataNodes.
+
+    Example::
+
+        dc = DataClient(e, e.getProxy('file@SmallFSGroup'))
+        dc.write('fred', '1')
+        dc.read('fred') # -> returns '1'
+
+    :param env: an environment object
+    :param group: proxy for a replica group of DataNodes
+    """
     def __init__(self, env, group):
         self._env = env
         self._group = group
@@ -69,8 +84,8 @@ class DataClient(object):
             self._master = {}
         return self._shards
 
-    def _findShard(self, path):
-        shards = self._getShards()
+    def _findShard(self, path, refresh=False):
+        shards = self._getShards(refresh)
         bits = '{0:08b}'.format(sHash(path))[::-1]
         for i in xrange(8):
             s = bits[:i]
@@ -79,18 +94,34 @@ class DataClient(object):
                 return s, addrs
         raise Exception('No shard exists for path "%s"' % path)
 
-    def _findMaster(self, path):
-        s, addrs = self._findShard(path)
+    def _findMaster(self, path, refresh=False):
+        s, addrs = self._findShard(path, refresh)
         if s not in self._master:
             addr = getMaster(addrs)
             self._master[s] = self._env.getProxy(addr, self._group)
         return self._master[s]
 
     def read(self, path):
-        m = self._findMaster(path)
-        return m.read(path)
+        """Calls ``m.read(path)`` on the replica which is master for the shard containing *path*.
+
+        :param path: the file path to read
+        """
+        try:
+            m = self._findMaster(path)
+            return m.read(path)
+        except ibase.NotMaster:
+            m = self._findMaster(path, refresh=True)
+            return m.read(path)
 
     def write(self, path, data):
-        m = self._findMaster(path)
-        m.write(path, data)
+        """Calls ``m.write(path, data)`` on the replica which is master for the shard containing *path*.
 
+        :param path: the file path to write
+        :param data: the data to write
+        """
+        try:
+            m = self._findMaster(path)
+            m.write(path, data)
+        except ibase.NotMaster:
+            m = self._findMaster(path, refresh=True)
+            m.write(path, data)

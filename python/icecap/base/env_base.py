@@ -15,7 +15,7 @@ class EnvBase(Publisher):
         self._activation_callbacks = []
 
     def do_f(self, func, *args):
-        """Runs func(*args) in the work queue.
+        """Runs ``func(*args)`` in the work queue.
 
         The work queue is a single thread. The result is returned as a Future.
 

@@ -336,36 +336,38 @@ class DataLog(object):
                     seq += 1
                 n = self._find_file(seq, nums)
                 fh = self._open(n)
-                pos = self._seek_seq(fh, seq)
-                if pos is not None:
-                    fh.seek(pos)
-                    if reverse:
-                        for item in self._rev_iter_file(fh):
-                            yield item
-                    else:
-                        for item in self._iter_file(fh):
-                            yield item
 
-            # Get list of remaining data files to iterate.
-            if reverse:
-                if n is None:
-                    n = nums[-1] + 1
-                nums = [i for i in reversed(nums) if i < n]
-            else:
-                if n is None:
-                    n = -1
-                nums = [i for i in nums if i > n]
-
-            # Iterate remaining data files.
-            for i in nums:
-                fh = self._open(i)
+        if seq is not None:
+            pos = self._seek_seq(fh, seq)
+            if pos is not None:
+                fh.seek(pos)
                 if reverse:
-                    fh.seek(0, os.SEEK_END)
                     for item in self._rev_iter_file(fh):
                         yield item
                 else:
                     for item in self._iter_file(fh):
                         yield item
+
+        # Get list of remaining data files to iterate.
+        if reverse:
+            if n is None:
+                n = nums[-1] + 1
+            nums = [i for i in reversed(nums) if i < n]
+        else:
+            if n is None:
+                n = -1
+            nums = [i for i in nums if i > n]
+
+        # Iterate remaining data files.
+        for i in nums:
+            fh = self._open(i)
+            if reverse:
+                fh.seek(0, os.SEEK_END)
+                for item in self._rev_iter_file(fh):
+                    yield item
+            else:
+                for item in self._iter_file(fh):
+                    yield item
 
     def __getitem__(self, seq):
         """Returns the string with sequence number *seq*.

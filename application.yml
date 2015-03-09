@@ -14,7 +14,7 @@ services:
 
 # Used by documentation generator
 author: Oliver Goodman
-year: 2014
+year: 2015
 
 autodoc:
   icecap.base: Basic infrastructure
@@ -40,6 +40,8 @@ autodoc:
   icecap.demo.server: Demo server
 
   icecap.storage: Data storage
+  icecap.storage.data_client: Client proxy wrapper for working with DataNodes
+  icecap.storage.data_manager: Handles operations involving multiple DataNodes
   icecap.storage.small_fs: A replicated file store
 
   icecap.ti: Test infrastructure

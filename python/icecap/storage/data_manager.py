@@ -21,14 +21,21 @@ def getShard(state, shard):
     return nodes
 
 class DataManager(istorage.DataManager, MasterOrSlave):
+    """Handles operations on DataNodes that are difficult to decentralise.
+
+    :param env: an environment object
+    :param group: replica group proxy for the DataNodes to be managed
+    """
     def __init__(self, env, group):
         MasterOrSlave.__init__(self, env)
         self._group = group
 
     def register_async(self, cb, addr, curr=None):
+        """Called when a DataNode goes online for the first time ever."""
         self.assertMaster_f().then(self._env.do_f, self.addReplica, '', addr).iceCB(cb)
 
     def remove_async(self, cb, addr, curr=None):
+        """Removes a DataNode permanently."""
         self.assertMaster_f().then(self._env.do_f, self.removeReplica, '', addr).iceCB(cb)
 
     def addReplica(self, shard, addr):

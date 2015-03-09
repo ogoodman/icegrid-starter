@@ -79,15 +79,16 @@ class Env(EnvBase):
         """Returns the local data directory path."""
         return icegrid_config.DATA_ROOT
 
-    def do(self, func, *args):
-        """Runs func(*args) in the work queue.
+    def do(self, func, *args, **kw):
+        """Runs ``func(*args)`` in the work queue.
 
         The work queue is a single thread.
 
         :param func: a function to call
         :param args: arguments for *func*
+        :param kw: keyword arguments for *func*
         """
-        self._work.do(func, *args)
+        self._work.do(func, *args, **kw)
 
     def getProxy(self, addr, type=None, one_way=False):
         """Gets a proxy for the servant (if any) at the specified address.
