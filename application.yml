@@ -26,6 +26,7 @@ autodoc:
   icecap.base.master: Master-slave election
   icecap.base.publisher: Publish-subscribe base class
   icecap.base.rep_log: Log which pushes updates to followers
+  icecap.base.sync_relay: Data synchronisation and replication
   icecap.base.thread_pool: A simple thread-pool
   icecap.base.util: Basic utilities
 
