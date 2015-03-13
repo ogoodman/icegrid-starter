@@ -68,7 +68,7 @@ class DataLog(object):
         self._chunk_limit = chunk_limit
         if not os.path.exists(dir):
             os.makedirs(dir)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         
     def first(self):
         """Sequence number of first item, or ``None`` if log is empty."""
@@ -171,6 +171,12 @@ class DataLog(object):
                     start = self._read_seq(fh)
                     if start is None or start >= seq:
                         break
+                self._remove(n)
+
+    def clear(self):
+        """Remove all data."""
+        with self._lock:
+            for n in self._nums():
                 self._remove(n)
 
     def _seek_start_of_line(self, fh):
