@@ -10,9 +10,10 @@ module icecap {
         interface DataManager extends ibase::MasterOrSlave {
             ["amd"] void register(string addr) throws ibase::NotMaster;
             ["amd"] void remove(string addr) throws ibase::NotMaster;
+            ["amd"] string getMasters() throws ibase::NotMaster;
         };
 
-        interface File extends ibase::MasterOrSlave {
+        interface File {
             ["amd"] Strings list() throws ibase::NotMaster;
             ["amd"] string read(string path) throws FileNotFound, ibase::NotMaster;
             ["amd"] void write(string path, string data) throws ibase::NotMaster;

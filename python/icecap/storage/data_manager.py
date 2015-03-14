@@ -1,7 +1,8 @@
+import simplejson as json
 import sys
 from icecap import istorage
 from icecap.base.master import MasterOrSlave
-from icecap.storage.data_client import getState, getMaster
+from icecap.storage.data_client import getState, getMaster, getShards
 
 def getShard(state, shard):
     """Extracts the state of a particular shard.
@@ -37,6 +38,18 @@ class DataManager(istorage.DataManager, MasterOrSlave):
     def remove_async(self, cb, addr, curr=None):
         """Removes a DataNode permanently."""
         self.assertMaster_f().then(self._env.do_f, self.removeReplica, '', addr).iceCB(cb)
+
+    def getMasters_async(self, cb, curr=None):
+        self.assertMaster_f().then(self._env.do_f, self.getMasters).iceCB(cb)
+
+    def getMasters(self):
+        replicas = self._env.replicas(self._group, refresh=True)
+        state = getState(replicas)
+        shard_map = getShards(state)
+        master_map = {}
+        for s, shard_state in shard_map.iteritems():
+            master_map[s] = getMaster(shard_state)
+        return json.dumps(master_map)
 
     def addReplica(self, shard, addr):
         """Adds a new replica to the group.

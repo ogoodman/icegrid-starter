@@ -3,9 +3,10 @@ from icecap.base.antenna import notifyOnline
 from icecap.base.master import mcall
 from icecap.base.util import getAddr
 from icecap.ti.fake_grid import FakeGrid
-from icecap import istorage
+from icecap import ibase, istorage
 from small_fs import server
 from data_manager import server as dm_server
+from icecap.storage.data_client import DataClient
 
 class FileTest(unittest.TestCase):
     def test(self):
@@ -17,13 +18,14 @@ class FileTest(unittest.TestCase):
 
         env = grid.env()
         fp = env.getProxy('file@SmallFSGroup')
+        dc = DataClient(env, fp)
         fp1 = env.getProxy('file@SmallFS-node1.SmallFSRep')
         fp2 = env.getProxy('file@SmallFS-node2.SmallFSRep')
 
-        mcall(env, fp, 'write', 'fred', 'hi')
+        dc.write('fred', 'hi')
 
-        self.assertEqual(mcall(env, fp, 'list'), ['fred'])
-        self.assertEqual(mcall(env, fp, 'read', 'fred'), 'hi')
+        self.assertEqual(dc.list(''), ['fred'])
+        self.assertEqual(dc.read('fred'), 'hi')
 
         self.assertEqual(fp2.listRep(), ['fred'])
         self.assertEqual(fp2.readRep('fred'), 'hi')
@@ -33,13 +35,16 @@ class FileTest(unittest.TestCase):
         grid.stopServer('SmallFS-node2')
         grid.disable('SmallFS-node2')
 
-        mcall(env, fp, 'write', 'fred', 'lo') # node1 becomes master
-        mcall(env, fp, 'write', 'barney', 'dino')
+        dc.write('fred', 'lo') # node1 becomes master
+        dc.write('barney', 'dino')
 
         grid.enable('SmallFS-node2')
 
         # Starting SmallFS-node2 should trigger updates from SmallFS-node1.
         self.assertEqual(fp2.readRep('fred'), 'lo')
+
+        fp1.assertMasterFor('')
+        self.assertRaises(ibase.NotMaster, fp2.assertMasterFor, '')
 
         # Starting SmallFS-node3 will cause a full sync from SmallFS-node1.
         grid.addServer('SmallFS-node3', server)
@@ -47,8 +52,9 @@ class FileTest(unittest.TestCase):
         grid.stopServer('SmallFS-node1')
 
         fp = env.getProxy('file@SmallFSGroup')
-        self.assertEqual(set(mcall(env, fp, 'list')), {'fred', 'barney'})
-        mcall(env, fp, 'write', 'fred', 'go') # force node3 to be populated.
+        dc = DataClient(env, fp)
+        self.assertEqual(set(dc.list('')), {'fred', 'barney'})
+        dc.write('fred', 'go') # force node3 to be populated.
 
         fp3 = env.getProxy('file@SmallFS-node3.SmallFSRep')
         self.assertEqual(set(fp3.listRep()), {'fred', 'barney'})

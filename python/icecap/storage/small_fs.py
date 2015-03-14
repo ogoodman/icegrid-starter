@@ -1,14 +1,19 @@
+import traceback
 import simplejson as json
 import os
+import random
 import sys
 import shutil
-from icecap import istorage
+from icecap import ibase, istorage
 from icecap.base.antenna import Antenna, notifyOnline
-from icecap.base.master import findLocal, MasterOrSlave, mcall_f
-from icecap.base.util import openLocal, getAddr, getServer
+from icecap.base.future import Future
+from icecap.base.master import mcall_f
+from icecap.base.util import openLocal, getAddr, getNode
 from icecap.base.rep_log import RepLog
 
-class File(istorage.File, MasterOrSlave):
+HI = 2**63-1
+
+class File(istorage.File):
     """A replicated file store for small files.
 
     Files are stored under ``<local-data>/files``, with replication data
@@ -17,12 +22,15 @@ class File(istorage.File, MasterOrSlave):
     :param env: server environment
     """
     def __init__(self, env):
-        MasterOrSlave.__init__(self, env)
+        self._env = env
         self._log = RepLog(env, 'files/.rep')
         self._path = os.path.join(env.dataDir(), 'files')
         self._new_replica = len(os.listdir(self._path)) < 2
         self._env.onActivation(self._register)
         self._env.subscribe('online', self._onOnline)
+        self._mgr = self._env.getProxy('file@DataManagerGroup', istorage.DataManagerPrx)
+        self._master_shards = None
+        self._master_priority = random.randint(0, HI)
 
     def _register(self):
         reg_marker = os.path.join(self._path, '.rep/registered')
@@ -32,8 +40,26 @@ class File(istorage.File, MasterOrSlave):
             open(reg_marker, 'w').write('')
         name, node = self._env.serverId().split('-', 1)
         addr = 'file@%s-%s.%sRep' % (name, node, name)
-        mgr = self._env.getProxy('file@DataManagerGroup', istorage.DataManagerPrx)
-        mcall_f(self._env, mgr, 'register', addr).then(done)
+        mcall_f(self._env, self._mgr, 'register', addr).then(done)
+
+    def assertMasterFor_f(self, shard):
+        if self._master_shards is None or shard not in self._master_shards:
+            masters_f = mcall_f(self._env, self._mgr, 'getMasters')
+            return masters_f.then(self._assertMasterFor, shard)
+        return Future(None)
+
+    def _assertMasterFor(self, master_map_s, shard):
+        master_map = json.loads(master_map_s)
+        node = getNode(self._env.serverId())
+        self._master_shards = []
+        for s, addr in master_map.iteritems():
+            if getNode(addr) == node:
+                self._master_shards.append(s)
+        if shard not in self._master_shards:
+            raise ibase.NotMaster()
+
+    def assertMasterFor_async(self, cb, shard, curr=None):
+        self.assertMasterFor_f(shard).iceCB(cb)
 
     def addPeer(self, shard, addr, sync, curr=None):
         """Adds addr as a replica of this one, at the head of the log.
@@ -63,7 +89,6 @@ class File(istorage.File, MasterOrSlave):
 
     def removeData(self, shard, curr=None):
         """Removes all data from this replica."""
-        assert not self._is_master
         assert shard == ''
         shutil.rmtree(self._path)
         self._log = RepLog(self._env, 'files/.rep')
@@ -85,7 +110,7 @@ class File(istorage.File, MasterOrSlave):
         second entry gives priority to replicas that have already been
         used. The last entry is a random number to use as a tie-breaker.
         """
-        m_count = 1 if self._is_master else 0
+        m_count = 1 if (self._master_shards and '' in self._master_shards) else 0
         return [m_count, 0 if self._new_replica else 1, self._master_priority]
 
     def getState(self, curr=None):
@@ -105,7 +130,7 @@ class File(istorage.File, MasterOrSlave):
 
         :param path: the file to read
         """
-        self.assertMaster_f().then(self.readRep, path).iceCB(cb)
+        self.assertMasterFor_f('').then(self.readRep, path).iceCB(cb)
 
     def readRep(self, path, curr=None):
         assert not path.startswith('.')
@@ -121,7 +146,7 @@ class File(istorage.File, MasterOrSlave):
         :param path: the file to write
         :param data: the data to write
         """
-        self.assertMaster_f().then(self.writeRep, path, data).iceCB(cb)
+        self.assertMasterFor_f('').then(self.writeRep, path, data).iceCB(cb)
 
     def writeRep(self, path, data, curr=None):
         assert not path.startswith('.')
@@ -149,7 +174,7 @@ class File(istorage.File, MasterOrSlave):
 
     def list_async(self, cb, curr=None):
         """Returns a list of all files."""
-        self.assertMaster_f().then(self.listRep).iceCB(cb)
+        self.assertMasterFor_f('').then(self.listRep).iceCB(cb)
 
     def listRep(self, curr=None):
         return list(self._list())
