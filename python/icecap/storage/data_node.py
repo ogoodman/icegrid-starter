@@ -79,6 +79,7 @@ class DataNode(object):
         :param shard: shard to remove data from
         """
         self._shard[shard].removeData()
+        del self._shard[shard]
 
     def addPeer(self, shard, addr, sync, curr=None):
         """Adds addr as a replica of this one, at the head of the log.
@@ -98,8 +99,12 @@ class DataNode(object):
         self._shard[shard].removePeer(addr)
 
     def _onOnline(self, server_id):
+        server, node = server_id.split('-', 1)
+        if server != self._env.serverId().split('-', 1)[0]:
+            return # nothing to do with us.
+        addr = '%s@%s.%sRep' % (self._type, server_id, server)
         for shard in self._shard.values():
-            shard._onOnline(server_id)
+            shard._onOnline(addr)
 
     def getState(self, curr=None):
         """Returns the replication state of this data replica.

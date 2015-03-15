@@ -116,13 +116,13 @@ class DataManager(istorage.DataManager, MasterOrSlave):
 
         env = self._env
         prx = env.getProxy(addr, self._group)
-        prx.removeData(shard)
         for a, s in shard_state.iteritems():
             if a == addr:
                 continue
             p = env.getProxy(a, self._group)
             p.removePeer(shard, addr)
             prx.removePeer(shard, a)
+        prx.removeData(shard)
 
 def server(env):
     small_fs = env.getProxy('file@SmallFSGroup', istorage.FilePrx)

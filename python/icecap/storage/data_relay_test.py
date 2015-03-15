@@ -2,11 +2,11 @@ import os
 import unittest
 import simplejson as json
 import shutil
-from sync_relay import SyncRelay
 from icecap.base.cap_dict import CapDict
 from icecap.base.util import grabOutput
+from data_relay import DataRelay
 
-LISTING = '/tmp/sync-relay-listing'
+LISTING = '/tmp/data-relay-listing'
 
 class FakeNode(object):
     def __init__(self):
@@ -25,10 +25,10 @@ class FakeNode(object):
                 func, args = self._while_listing.pop(0)
                 func(*args)
 
-    def __getitem__(self, n):
+    def get(self, n):
         return self._log[n]
 
-    def __len__(self):
+    def end(self):
         return len(self._log)
 
     def write(self, path, data):
@@ -85,23 +85,15 @@ class FakeNode(object):
     def doWhileListing(self, func, *args):
         self._while_listing.append((func, args))
 
-class FakeThread(object):
-    def __init__(self):
-        self._calls = []
+    def logDir(self):
+        if not os.path.exists(LISTING):
+            os.makedirs(LISTING)
+        return LISTING
 
-    def do(self, func, *args):
-        self._calls.append((func, args))
-
-    def run(self):
-        while self._calls:
-            func, args = self._calls.pop(0)
-            func(*args)
-
-class SyncRelayTest(unittest.TestCase):
+class DataRelayTest(unittest.TestCase):
     def setUp(self):
         if os.path.exists(LISTING):
-            os.unlink(LISTING)
-        listing = LISTING
+            shutil.rmtree(LISTING)
 
         # Set up two, as-yet unsynchronised nodes.
         self.source = FakeNode()
@@ -112,11 +104,10 @@ class SyncRelayTest(unittest.TestCase):
         self.source.write('c', 'Cat')
 
         # Set up a relay that will synchronise them.
-        self.thread = FakeThread()
         self.store = {}
-        args = {'source': self.source, 'target': self.target, 'listing': listing, 'thread': self.thread}
+        args = {'env': None, 'source': self.source, 'target': self.target}
         self.sinks = CapDict(self.store, args)
-        self.sinks['relay'] = SyncRelay(self.source, self.target, listing, 'LISTING')
+        self.sinks['relay'] = DataRelay(None, self.source, '', 'LISTING', target=self.target)
         self.relay = self.sinks['relay']
 
     def tearDown(self):
@@ -131,17 +122,14 @@ class SyncRelayTest(unittest.TestCase):
 
         source.setRelay(relay)
         relay.start()
-        self.thread.run()
 
         source.write('f', 'Fred')
-        self.thread.run()
 
         self.assertEqual(source._data, target._data)
 
         target._fail_update = True
         def do_write():
             source.write('f', 'Fish')
-            self.thread.run()
         out, err = grabOutput(do_write)
         self.assertTrue('update failed' in err)
 
@@ -150,7 +138,6 @@ class SyncRelayTest(unittest.TestCase):
         source.setRelay(relay)
 
         source.write('c', 'Chips')
-        self.thread.run()
         self.assertEqual(source._data, target._data)
 
     def testHaltDuringList(self):
@@ -163,7 +150,6 @@ class SyncRelayTest(unittest.TestCase):
 
         def do_start():
             relay.start()
-            self.thread.run()
         out, err = grabOutput(do_start)
         self.assertTrue('bang' in err)
 
@@ -173,7 +159,6 @@ class SyncRelayTest(unittest.TestCase):
 
         relay.start()
         relay.start()
-        self.thread.run()
 
         self.assertEqual(set(target.list()), set(['a', 'b', 'c']))
         self.assertEqual(target.read('c'), 'Cat')
@@ -186,7 +171,6 @@ class SyncRelayTest(unittest.TestCase):
 
         source.setRelay(relay)
         relay.start()
-        self.thread.run()
 
         self.assertEqual(source._data, target._data)
 
@@ -196,7 +180,6 @@ class SyncRelayTest(unittest.TestCase):
         target._pause_after = 1
         source.setRelay(relay)
         relay.start()
-        self.thread.run()
 
         self.assertEqual(relay._state, 'COPYING')
         source.write('b', 'Bean')
@@ -204,7 +187,7 @@ class SyncRelayTest(unittest.TestCase):
         source.remove('c')
         target.step(10)
 
-        self.thread.run()
+        relay.run()
         self.assertEqual(source._data, target._data)
 
     def testStopDuringCopy(self):
@@ -213,7 +196,6 @@ class SyncRelayTest(unittest.TestCase):
         target._pause_after = 1
         source.setRelay(relay)
         relay.start()
-        self.thread.run()
 
         self.assertEqual(relay._state, 'COPYING')
 
@@ -224,7 +206,6 @@ class SyncRelayTest(unittest.TestCase):
         source.setRelay(relay)
         
         relay.start()
-        self.thread.run()
 
         self.assertEqual(source._data, target._data)
 
@@ -235,13 +216,12 @@ class SyncRelayTest(unittest.TestCase):
         source.setRelay(relay)
         source.doWhileListing(source.write, 'd', 'Dog')
         relay.start()
-        self.thread.run()
 
         self.assertEqual(relay._state, 'COPYING')
-
         target.step(10)
-        self.thread.run()
+        relay.run()
 
+        self.assertEqual(source._data, target._data)
 
 if __name__ == '__main__':
     unittest.main()

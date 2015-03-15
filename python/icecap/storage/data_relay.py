@@ -1,14 +1,14 @@
-"""The purpose of a SyncRelay is to copy data from a master to a slave DataNode shard.
+"""The purpose of a DataRelay is to copy data from a master to a slave DataNode shard.
 
 It can 
 
 * copy data from an existing shard to a new empty one, and
 * replicate data between two existing shards.
 
-When a SyncRelay finishes copying data to a new shard, it switches automatically
+When a DataRelay finishes copying data to a new shard, it switches automatically
 to replication.
 
-A SyncRelay has three basic states:
+A DataRelay has three basic states:
 
 * ``LISTING`` - preparing to copy data,
 * ``COPYING`` - copying data,
@@ -29,7 +29,7 @@ It requires a source object with methods
 * ``source.list()``, yielding a sequence of paths,
 * ``source.dump(path)``, returning ``(seq, iter)``,
 * ``source[n]``, and
-* ``len(source)``, 
+* ``source.end()``, 
 
 and a target object with an asynchronous
 
@@ -62,25 +62,26 @@ apply updates from the ``source``, incrementing ``pos`` with each one.
 import os
 import sys
 import threading
-from thread_pool import ThreadPool
+import Ice
 
-class SyncRelay(object):
-    """A SyncRelay synchronises data from *source* to *target*.
+class DataRelay(object):
+    """A DataRelay synchronises data from *source* to *target*.
 
+    :param env: an environment object
     :param source: a DataNode shard and replication log
-    :param target: a DataNode shard to receive data and/or updates
-    :param listing: path where a local file may be written and read
+    :param addr: address of a DataNode to receive data and/or updates
     :param state: (str) one of ``LISTING``, ``COPYING`` or ``REPLICATING``
     :param pos: (int) position in the *source* replication log
     :param copy_pos: (int/None) position in the listing while copying
-    :param thread: (optional) an object with thread-pool semantics
+    :param target: (optional) a DataNode shard to receive data and/or updates
     """
-    serialize = ('state', 'pos', 'copy_pos')
+    serialize = ('addr', 'state', 'pos', 'copy_pos')
 
-    def __init__(self, source, target, listing, state, pos=None, copy_pos=None, thread=None):
+    def __init__(self, env, source, addr, state, pos=None, copy_pos=None, target=None):
         self._source = source
-        self._target = target
-        self._listing = listing
+        self._addr = addr
+        self._target = env.getProxy(addr) if target is None else target
+        self._listing = os.path.join(source.logDir(), 'DATALIST')
         self._state = state
         self._pos = pos
         self._copy_pos = copy_pos
@@ -90,10 +91,18 @@ class SyncRelay(object):
         self._dump_seq = None
         self._dump = None
         self._lock = threading.Lock()
-        self._do = (ThreadPool(1) if thread is None else thread).do
+        self._calls = []
+
+    def _do(self, func, *args):
+        self._calls.append((func, args))
+
+    def run(self):
+        while self._calls:
+            func, args = self._calls.pop(0)
+            func(*args)
 
     def start(self):
-        """Starts updates or any other activity the SyncRelay is expected to perform.
+        """Starts updates or any other activity the DataRelay is expected to perform.
 
         This should be called once when the server hosting ``source`` is started
         and again whenever new data is appended to ``source``.
@@ -104,7 +113,7 @@ class SyncRelay(object):
             else:
                 if self._state == 'LISTING':
                     if self._pos is None:
-                        self._pos = len(self._source)
+                        self._pos = self._source.end()
                         self._save(self)
                     self._do(self._listSource)
                     start_updates = True
@@ -119,6 +128,7 @@ class SyncRelay(object):
 
         if start_updates:
             self._pushNext()
+        self.run()
 
     def _listSource(self):
         """Runs in a thread making a listing of the source during the ``LISTING`` state."""
@@ -167,7 +177,8 @@ class SyncRelay(object):
 
     def _onErr(self, exc):
         """Runs whenever an error occurs applying any kind of update to the target."""
-        print >>sys.stderr, 'Exception from update:', exc
+        if not isinstance(exc, Ice.NoEndpointException):
+            print >>sys.stderr, 'Exception from update:', exc
         self._in_update = False
 
     def _pushNext(self):
@@ -190,7 +201,7 @@ class SyncRelay(object):
                     self._in_update = False
                     self._do(self._copyOne)
                 elif self._pos < self._dump_seq:
-                    msg = self._source[self._pos]
+                    msg = self._source.get(self._pos)
                     on_ok = self._onOk
                 else:
                     try:
@@ -202,8 +213,8 @@ class SyncRelay(object):
                         self._in_update = False
                         self._do(self._copyOne)
             else:
-                if self._pos < len(self._source):
-                    msg = self._source[self._pos]
+                if self._pos < self._source.end():
+                    msg = self._source.get(self._pos)
                     on_ok = self._onOk
                 else:
                     self._in_update = False

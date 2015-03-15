@@ -1,13 +1,10 @@
-import traceback
-import simplejson as json
 import os
-import sys
-import shutil
+import simplejson as json
 from icecap import istorage
 from icecap.base.antenna import Antenna, notifyOnline
 from icecap.base.util import openLocal
-from icecap.base.rep_log import RepLog
 from icecap.storage.data_node import DataNode
+from icecap.storage.data_shard import DataShard
 
 class FileShardFactory(object):
     def __init__(self, env):
@@ -17,7 +14,7 @@ class FileShardFactory(object):
         return 'file'
 
     def makeShard(self, shard):
-        return File(self._env, shard)
+        return FileShard(self._env, 'file/S' + shard)
 
 class FileNode(DataNode, istorage.File):
     """A replicated file store for small files.
@@ -60,49 +57,7 @@ class FileNode(DataNode, istorage.File):
     def listRep(self, shard, curr=None):
         return self._shard[shard].list()
 
-class File(object):
-    def __init__(self, env, shard):
-        self._env = env
-        self._lpath = 'file/S' + shard
-        self._path = os.path.join(env.dataDir(), self._lpath)
-        self._log = RepLog(env, self._lpath + '/.rep')
-
-    def _onOnline(self, server_id):
-        """Respond to a peer coming online."""
-        server, node = server_id.split('-', 1)
-        if server != self._env.serverId().split('-', 1)[0]:
-            return # nothing to do with us.
-        addr = 'file@%s.%sRep' % (server_id, server)
-        if self._log.hasSink(addr):
-            self._log.update(addr)
-
-    def isNew(self):
-        return len(os.listdir(self._path)) < 2
-
-    def peers(self):
-        """Returns a list of peers this replica replicates to."""
-        return self._log.sinks()
-
-    def addPeer(self, addr, sync):
-        """Adds addr as a replica of this one, at the head of the log.
-
-        :param addr: proxy string of the replica to add
-        :param sync: (bool) whether to sync data from here to addr
-        """
-        if sync:
-            prx = self._env.getProxy(addr, istorage.FilePrx)
-            for path in self._list():
-                data = self.read(path)
-                prx.update(json.dumps({'path': path, 'data': data}))
-        self._log.addSink({'addr': addr, 'method': 'update'})
-
-    def removePeer(self, addr):
-        """Removes addr as a replica of this one.
-
-        :param addr: proxy string of the replica to remove
-        """
-        self._log.removeSink(addr)
-
+class FileShard(DataShard):
     def update(self, info):
         """For replication only: applies the supplied json-encoded update.
 
@@ -110,6 +65,16 @@ class File(object):
         """
         with openLocal(self._env, os.path.join(self._lpath, info['path']), 'w') as out:
             out.write(info['data'])
+
+    def dump(self, path):
+        assert not path.startswith('.')
+        try:
+            data = openLocal(self._env, os.path.join(self._lpath, path)).read()
+        except IOError:
+            d = []
+        else:
+            d = [json.dumps({'path': path, 'data': data}),]
+        return self._log.end(), iter(d)
 
     def read(self, path):
         assert not path.startswith('.')
@@ -123,12 +88,7 @@ class File(object):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join(self._lpath, path), 'w') as out:
             out.write(data)
-        self._env.do(self._log.append, json.dumps({'path':path, 'data':data}))
-
-    def removeData(self):
-        """Removes all data from this replica."""
-        shutil.rmtree(self._path)
-        self._log = RepLog(self._env, self._lpath + '/.rep')
+        self._env.do(self.append, json.dumps({'path':path, 'data':data}))
 
     def _list(self):
         root = self._path
