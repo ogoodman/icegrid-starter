@@ -1,5 +1,4 @@
 import os
-import simplejson as json
 from icecap import istorage
 from icecap.base.antenna import Antenna, notifyOnline
 from icecap.base.util import openLocal
@@ -57,14 +56,28 @@ class FileNode(DataNode, istorage.File):
     def listRep(self, shard, curr=None):
         return self._shard[shard].list()
 
+    def remove_async(self, cb, path, curr=None):
+        self.master_f(path).call_f('remove', path).iceCB(cb)
+
+    def removeRep(self, path):
+        s = self._shardFor(path)
+        self._shard[s].remove(path)
+
 class FileShard(DataShard):
     def update(self, info):
         """For replication only: applies the supplied json-encoded update.
 
         :param info_s: a json encoded update
         """
-        with openLocal(self._env, os.path.join(self._lpath, info['path']), 'w') as out:
-            out.write(info['data'])
+        data = info['data']
+        if data is None:
+            try:
+                os.unlink(os.path.join(self._path, info['path']))
+            except OSError:
+                pass
+        else:
+            with openLocal(self._env, os.path.join(self._lpath, info['path']), 'w') as out:
+                out.write(info['data'])
 
     def dump(self, path):
         assert not path.startswith('.')
@@ -73,7 +86,7 @@ class FileShard(DataShard):
         except IOError:
             d = []
         else:
-            d = [json.dumps({'path': path, 'data': data}),]
+            d = [repr({'path': path, 'data': data}),]
         return self._log.end(), iter(d)
 
     def read(self, path):
@@ -88,7 +101,7 @@ class FileShard(DataShard):
         assert not path.startswith('.')
         with openLocal(self._env, os.path.join(self._lpath, path), 'w') as out:
             out.write(data)
-        self._env.do(self.append, json.dumps({'path':path, 'data':data}))
+        self._env.do(self.append, repr({'path':path, 'data':data}))
 
     def _list(self):
         root = self._path
@@ -101,6 +114,14 @@ class FileShard(DataShard):
 
     def list(self):
         return list(self._list())
+
+    def remove(self, path):
+        assert not path.startswith('.')
+        try:
+            os.unlink(os.path.join(self._path, path))
+            self._env.do(self.append, repr({'path':path, 'data':None}))
+        except OSError:
+            pass
 
 def server(env):
     env.provide('file', 'SmallFSRep', FileNode(env))

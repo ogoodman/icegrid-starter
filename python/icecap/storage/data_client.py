@@ -5,7 +5,7 @@ import simplejson as json
 from icecap import istorage
 from icecap.base.util import sHash, pcall, getAddr
 
-def getState(replicas):
+def getState(replicas, register=True):
     """Gets replication state info from a replica group.
 
     Each replica returns state info in the form::
@@ -18,10 +18,14 @@ def getState(replicas):
         {addr1: state_info1,
          addr2: state_info2, }
 
+    .. note:: register is an implementation detail: when a DataManager uses
+        this function it must set *register* False to avoid an infinite recursion.
+
     :param replicas: a list of replicas to query
+    :param register: whether unregistered nodes should register before responding 
     """
     state = {}
-    for p, r, e in pcall(replicas, 'getState'):
+    for p, r, e in pcall(replicas, 'getState', register):
         if e is None:
             state[getAddr(p)] = json.loads(r)
     return state
@@ -58,7 +62,7 @@ def getMaster(shard_state):
             m_addr = addr
     return m_addr
 
-# NOTE: currently only 'read' and 'write' are supported. In future different DataNode
+# NOTE: currently only file methods are supported. In future different DataNode
 # types will require other methods.
 
 class DataClient(object):
@@ -106,6 +110,12 @@ class DataClient(object):
         return self._master[s]
 
     def call(self, method, path, *args):
+        """Calls ``m.<method>(path, *args)`` where *m* is the master DataNode for *path*.
+
+        :param method: (str) the method to call
+        :param path: (str) data item to which the call applies
+        :param args: additional arguments
+        """
         try:
             m = self._findMaster(path)
             return getattr(m, method)(path, *args)
@@ -114,6 +124,12 @@ class DataClient(object):
             return getattr(m, method)(path, *args)
 
     def callByShard(self, method, shard, *args):
+        """Calls ``m.<method>(shard, *args)`` where *m* is the master DataNode for *shard*.
+
+        :param method: (str) the method to call
+        :param shard: (str) shard to which the call applies
+        :param args: additional arguments
+        """
         try:
             m = self._findMaster(shard=shard)
             return getattr(m, method)(shard, *args)
@@ -137,4 +153,15 @@ class DataClient(object):
         return self.call('write', path, data)
 
     def list(self, shard):
+        """Lists all files in the specified shard.
+
+        :param shard: the shard to list
+        """
         return self.callByShard('list', shard)
+
+    def remove(self, path):
+        """Removes the specified file.
+
+        :param path: the file to remove
+        """
+        return self.call('remove', path)

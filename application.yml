@@ -23,14 +23,14 @@ autodoc:
   icecap.base.env: Environment resource factory
   icecap.base.env_base: Common environment methods
   icecap.base.future: Asynchronous return values
+  icecap.base.lru_cache: Least-recently-used Cache
   icecap.base.master: Master-slave election
   icecap.base.publisher: Publish-subscribe base class
-  icecap.base.rep_log: Log which pushes updates to followers
-  icecap.base.sync_relay: Data synchronisation and replication
   icecap.base.thread_pool: A simple thread-pool
   icecap.base.util: Basic utilities
 
   icecap.data: Persistent data
+  icecap.data.data_array: Persistent sequence of strings with cached indexing
   icecap.data.data_log: Persistent sequence of strings
   icecap.data.file_dict: Persistent dictionary of strings
 
@@ -43,6 +43,9 @@ autodoc:
   icecap.storage: Data storage
   icecap.storage.data_client: Client proxy wrapper for working with DataNodes
   icecap.storage.data_manager: Handles operations involving multiple DataNodes
+  icecap.storage.data_node: Base servant for data storage
+  icecap.storage.data_relay: Data synchronisation and replication
+  icecap.storage.data_shard: Base class for data sharding and replication
   icecap.storage.small_fs: A replicated file store
 
   icecap.ti: Test infrastructure

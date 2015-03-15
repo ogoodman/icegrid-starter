@@ -22,6 +22,8 @@ class FileTest(unittest.TestCase):
         fp1 = env.getProxy('file@SmallFS-node1.SmallFSRep')
         fp2 = env.getProxy('file@SmallFS-node2.SmallFSRep')
 
+        self.assertEqual(dc.list(''), [])
+
         dc.write('fred', 'hi')
 
         self.assertEqual(dc.list(''), ['fred'])

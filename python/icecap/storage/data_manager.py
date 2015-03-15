@@ -44,7 +44,7 @@ class DataManager(istorage.DataManager, MasterOrSlave):
 
     def getMasters(self):
         replicas = self._env.replicas(self._group, refresh=True)
-        state = getState(replicas)
+        state = getState(replicas, False)
         shard_map = getShards(state)
         master_map = {}
         for s, shard_state in shard_map.iteritems():
@@ -62,7 +62,7 @@ class DataManager(istorage.DataManager, MasterOrSlave):
         :param addr: the address of the new node
         """
         replicas = self._env.replicas(self._group, refresh=True)
-        state = getState(replicas)
+        state = getState(replicas, False)
 
         prx = self._env.getProxy(addr, self._group)
 
@@ -80,7 +80,7 @@ class DataManager(istorage.DataManager, MasterOrSlave):
         :param addr: the replica to be added
         """
         replicas = self._env.replicas(self._group, refresh=True)
-        state = getState(replicas)
+        state = getState(replicas, False)
 
         shard_state = getShard(state, shard)
         m_addr = getMaster(shard_state)
@@ -106,7 +106,7 @@ class DataManager(istorage.DataManager, MasterOrSlave):
         :param addr: the replica to be removed
         """
         replicas = self._env.replicas(self._group, refresh=True)
-        state = getState(replicas)
+        state = getState(replicas, False)
         shard_state = getShard(state, '')
         if addr not in shard_state:
             return

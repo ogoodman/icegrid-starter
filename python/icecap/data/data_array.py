@@ -2,6 +2,24 @@ from icecap.base.lru_cache import LRUCache
 from icecap.data.data_log import DataLog
 
 class DataArray(DataLog):
+    """Persistent storage for a contiguous array of strings.
+
+    Indexing is optimised for reading sequentially forwards or backwards::
+
+        a = DataArray(dir_path)
+        for i in xrange(a.begin(), a.end()):
+            s = a[i]
+            # do something with s...
+
+    When any item is read, a slice of up to *chunk_size* items surrounding
+    the item is read and kept in memory. Up to *n_chunks* such slices
+    are stored.
+
+    :param dir: directory in which to put data files (parent must exist)
+    :param chunk_limit: size at which to start a new data file
+    :param n_chunks: number of slices to cache
+    :param chunk_size: maximum number of items in each cached slice
+    """
     def __init__(self, dir, chunk_limit=10240000, n_chunks=4, chunk_size=100):
         DataLog.__init__(self, dir, chunk_limit)
         self._chunks = LRUCache(n_chunks)
@@ -9,6 +27,21 @@ class DataArray(DataLog):
         self._end = None
 
     def append(self, v, seq=None):
+        """Append a string to the log with optional sequence number.
+
+        If not supplied, *seq* will be one more than the current highest.
+        If supplied and the log is non-empty, *seq* must be one more than
+        the current highest.
+
+        A sequence number may be used with an empty log to start it at
+        some value other than 0 (the default).
+
+        Returns (*seq*, *existing*) where *seq* is the sequence number written and
+        *existing* is False if a new data file was started.
+
+        :param s: string to append
+        :param seq: sequence number
+        """
         with self._lock:
             end = self.end()
             if seq is None:
@@ -30,6 +63,10 @@ class DataArray(DataLog):
             return s_e
 
     def __getitem__(self, i):
+        """Gets the *i*-th string from the log.
+
+        :param i: index of the string to fetch
+        """
         with self._lock:
             lo, hi = None, None
             for a, chunk in self._chunks.iteritems():
@@ -73,9 +110,11 @@ class DataArray(DataLog):
             return new[i - lo]
 
     def begin(self):
+        """Index of the first string in the log, or 0 if the log is empty."""
         return self.first() or 0
 
     def end(self):
+        """One beyond the index of the last string in the log, or 0 if the log is empty."""
         if self._end is None:
             last = self.last()
             if last is None:
@@ -84,10 +123,18 @@ class DataArray(DataLog):
         return self._end
 
     def __len__(self):
+        """Number of items in the log."""
         first = self.first()
         return 0 if first is None else self.last() + 1 - first
 
     def truncate(self, n):
+        """Removes as many items as possible with index less than *n*.
+
+        The log is stored in a sequence of files. Any files containing only
+        items with index less than *n* are removed.
+
+        :param n: lower bound for items which must be kept
+        """
         with self._lock:
             DataLog.truncate(self, n)
             for a in list(self._chunks):
@@ -95,6 +142,7 @@ class DataArray(DataLog):
                     del self._chunks[a]
 
     def clear(self):
+        """Removes all items leaving the log empty."""
         with self._lock:
             DataLog.clear(self)
             self._chunks.clear()
