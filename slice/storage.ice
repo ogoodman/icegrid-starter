@@ -18,7 +18,16 @@ module icecap {
             ["amd"] string getMasters() throws ibase::NotMaster;
         };
 
-        interface File {
+        interface DataNode {
+            void addPeer(string shard, string addr, bool sync);
+            void removePeer(string shard, string addr);
+            void addShard(string shard);
+            void removeData(string shard);
+            string getState();
+            void update(string info);
+        };
+
+        interface File extends DataNode {
             ["amd"] Strings list(string shard) throws NoShard;
             ["amd"] string read(string path) throws FileNotFound, NoShard;
             ["amd"] void write(string path, string data) throws NoShard;
@@ -26,12 +35,6 @@ module icecap {
             string readRep(string path) throws FileNotFound;
             void writeRep(string path, string data);
             Strings listRep(string shard);
-            // replication
-            void update(string info);
-            void addPeer(string shard, string addr, bool sync);
-            void removePeer(string shard, string addr);
-            void removeData(string shard);
-            string getState();
         };
     };
 };

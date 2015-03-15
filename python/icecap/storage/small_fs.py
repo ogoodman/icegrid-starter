@@ -1,7 +1,6 @@
 import traceback
 import simplejson as json
 import os
-import random
 import sys
 import shutil
 from icecap import istorage
@@ -9,8 +8,6 @@ from icecap.base.antenna import Antenna, notifyOnline
 from icecap.base.util import openLocal
 from icecap.base.rep_log import RepLog
 from icecap.storage.data_node import DataNode
-
-HI = 2**63-1
 
 class FileShardFactory(object):
     def __init__(self, env):
@@ -38,8 +35,7 @@ class FileNode(DataNode, istorage.File):
 
         :param path: the file to read
         """
-        s = self._shardFor(path)
-        self.assertMasterFor_f(s).then(self._shard[s].read, path).iceCB(cb)
+        self.master_f(path).call_f('read', path).iceCB(cb)
 
     def readRep(self, path, curr=None):
         s = self._shardFor(path)
@@ -51,8 +47,7 @@ class FileNode(DataNode, istorage.File):
         :param path: the file to write
         :param data: the data to write
         """
-        s = self._shardFor(path)
-        self.assertMasterFor_f(s).then(self._shard[s].write, path, data).iceCB(cb)
+        self.master_f(path).call_f('write', path, data).iceCB(cb)
 
     def writeRep(self, path, data, curr=None):
         s = self._shardFor(path)
@@ -60,19 +55,10 @@ class FileNode(DataNode, istorage.File):
 
     def list_async(self, cb, shard, curr=None):
         """Returns a list of all files."""
-        self.assertMasterFor_f(shard).then(self._shard[shard].list).iceCB(cb)
+        self.master_f(shard=shard).call_f('list').iceCB(cb)
 
     def listRep(self, shard, curr=None):
         return self._shard[shard].list()
-
-    def update(self, info_s, curr=None):
-        """For replication only: applies the supplied json-encoded update.
-
-        :param info_s: a json encoded update
-        """
-        info = json.loads(info_s)
-        s = self._shardFor(info['path'])
-        self._shard[s].update(info)
 
 class File(object):
     def __init__(self, env, shard):
@@ -80,22 +66,6 @@ class File(object):
         self._lpath = 'file/S' + shard
         self._path = os.path.join(env.dataDir(), self._lpath)
         self._log = RepLog(env, self._lpath + '/.rep')
-        self._new_replica = len(os.listdir(self._path)) < 2
-        self._master_priority = random.randint(0, HI)
-        self._is_master = False
-
-    def masterState(self):
-        """Returns a list of *int64* giving the master priority of this replica.
-
-        The first entry is 1 if this replica is master, 0 otherwise. The
-        second entry gives priority to replicas that have already been
-        used. The last entry is a random number to use as a tie-breaker.
-        """
-        m_count = 1 if self._is_master else 0
-        return [m_count, 0 if self._new_replica else 1, self._master_priority]
-
-    def getState(self):
-        return {'replicas': self.peers(), 'priority': self.masterState()}
 
     def _onOnline(self, server_id):
         """Respond to a peer coming online."""
@@ -105,6 +75,9 @@ class File(object):
         addr = 'file@%s.%sRep' % (server_id, server)
         if self._log.hasSink(addr):
             self._log.update(addr)
+
+    def isNew(self):
+        return len(os.listdir(self._path)) < 2
 
     def peers(self):
         """Returns a list of peers this replica replicates to."""
@@ -156,7 +129,6 @@ class File(object):
         """Removes all data from this replica."""
         shutil.rmtree(self._path)
         self._log = RepLog(self._env, self._lpath + '/.rep')
-        self._new_replica = True
 
     def _list(self):
         root = self._path

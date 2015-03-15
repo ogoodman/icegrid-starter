@@ -261,6 +261,24 @@ class Future(object):
         self.callback(new.resolve, chain)
         return new
 
+    def call_f(self, method, *args, **kw):
+        """Make a new future which calls the specified method of the future result.
+
+        When this future is resolved, the first result value is treated
+        as an object on which to make the specified method call.
+        If the future resolves with multiple values, all remaining values
+        are passed as arguments, followed by the *args* and *kw*.
+
+        :param method: (str) a method to call on the eventual value
+        :param args: arguments for the method call
+        :param kw: keyword arguments for the method call
+        """
+        new = Future()
+        def chain(ob, *rest):
+            new.run(getattr(ob, method), *(rest + args), **kw)
+        self.callback(chain, new.error)
+        return new
+
     def __del__(self):
         """Prints a message to ``sys.stderr`` if an exception was set but never handled.
 

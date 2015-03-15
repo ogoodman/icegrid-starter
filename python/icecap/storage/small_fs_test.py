@@ -43,8 +43,8 @@ class FileTest(unittest.TestCase):
         # Starting SmallFS-node2 should trigger updates from SmallFS-node1.
         self.assertEqual(fp2.readRep('fred'), 'lo')
 
-        fp1.assertMasterFor('')
-        self.assertRaises(istorage.NoShard, fp2.assertMasterFor, '')
+        self.assertEqual(fp1.read('fred'), 'lo') # fp1 is master
+        self.assertRaises(istorage.NoShard, fp2.read, 'fred')
 
         # Starting SmallFS-node3 will cause a full sync from SmallFS-node1.
         grid.addServer('SmallFS-node3', server)

@@ -1,9 +1,12 @@
 import os
+import random
 import simplejson as json
 from icecap import istorage
 from icecap.base.future import Future
 from icecap.base.master import mcall_f
 from icecap.base.util import getNode, sHash
+
+HI = 2**63-1
 
 def error(exc):
     f = Future()
@@ -25,11 +28,10 @@ class DataNode(object):
 
     def _initShards(self):
         self._shard = {}
+        self._priority = {}
         for d in os.listdir(self._path):
             if d.startswith('S'):
                 self.addShard(d[1:])
-        if not self._shard:
-            self.addShard('')
 
     def _register(self):
         reg_marker = os.path.join(self._path, '.reg')
@@ -47,27 +49,29 @@ class DataNode(object):
             if bits.startswith(s):
                 return s
 
-    def assertMasterFor_f(self, shard):
-        if shard not in self._shard:
-            return error(istorage.NoShard(shard=shard))
-        if not self._shard[shard]._is_master:
-            masters_f = mcall_f(self._env, self._mgr, 'getMasters')
-            return masters_f.then(self._assertMasterFor, shard)
-        return Future(None)
-
-    def _assertMasterFor(self, master_map_s, shard):
+    def _getCurrentMaster(self, master_map_s, path, shard):
         master_map = json.loads(master_map_s)
         node = getNode(self._env.serverId())
         for s in self._shard:
-            self._shard[s]._is_master = (s in master_map and getNode(master_map[s]) == node)
-        if not self._shard[shard]._is_master:
-            raise istorage.NoShard(shard=shard)
+            m_pri = 1 if (s in master_map and getNode(master_map[s]) == node) else 0
+            self._priority[s][0] = m_pri
+        if not self._priority[shard][0]:
+            raise istorage.NoShard(path=path)
+        return self._shard[shard]
 
-    def assertMasterFor_async(self, cb, shard, curr=None):
-        self.assertMasterFor_f(shard).iceCB(cb)
+    def master_f(self, path=None, shard=None):
+        if shard is None:
+            shard = self._shardFor(path)
+        if shard not in self._shard:
+            return error(istorage.NoShard(path, shard))
+        if not self._priority[shard][0]:
+            masters_f = mcall_f(self._env, self._mgr, 'getMasters')
+            return masters_f.then(self._getCurrentMaster, path, shard)
+        return Future(self._shard[shard])
 
     def addShard(self, shard, curr=None):
-        self._shard[shard] = self._factory.makeShard(shard)
+        self._shard[shard] = sh = self._factory.makeShard(shard)
+        self._priority[shard] = [0, 0 if sh.isNew() else 1, random.randint(0, HI)]
 
     def removeData(self, shard, curr=None):
         """Remove all data from a shard.
@@ -106,6 +110,15 @@ class DataNode(object):
 
         """
         shard_state = {}
-        for s in self._shard:
-            shard_state[s] = self._shard[s].getState()
+        for s, sh in self._shard.iteritems():
+            shard_state[s] = {'replicas': sh.peers(), 'priority': self._priority[s]}
         return json.dumps({'shards': shard_state})
+
+    def update(self, info_s, curr=None):
+        """For replication only: applies the supplied json-encoded update.
+
+        :param info_s: a json encoded update
+        """
+        info = json.loads(info_s)
+        s = self._shardFor(info['path'])
+        self._shard[s].update(info)

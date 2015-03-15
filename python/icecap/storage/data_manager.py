@@ -33,7 +33,7 @@ class DataManager(istorage.DataManager, MasterOrSlave):
 
     def register_async(self, cb, addr, curr=None):
         """Called when a DataNode goes online for the first time ever."""
-        self.assertMaster_f().then(self._env.do_f, self.addReplica, '', addr).iceCB(cb)
+        self.assertMaster_f().then(self._env.do_f, self.registerNode, addr).iceCB(cb)
 
     def remove_async(self, cb, addr, curr=None):
         """Removes a DataNode permanently."""
@@ -51,25 +51,41 @@ class DataManager(istorage.DataManager, MasterOrSlave):
             master_map[s] = getMaster(shard_state)
         return json.dumps(master_map)
 
-    def addReplica(self, shard, addr):
-        """Adds a new replica to the group.
+    def registerNode(self, addr):
+        """Registers a new DataNode.
 
-        Adds bi-directional links between the new replica at *prx* and all
-        existing replicas and populates the new replica with all existing data.
+        Currently this just adds a single catch-all shard to each new node.
+        Eventually it will only add a shard if there is a need. Re-balancing
+        operations will take care of populating available nodes which have
+        no shard initially.
 
-        :param shard: the shard to remove addr from
-        :param addr: the replica to be removed
+        :param addr: the address of the new node
         """
         replicas = self._env.replicas(self._group, refresh=True)
         state = getState(replicas)
-        assert addr in state
 
-        shard_state = getShard(state, '')
+        prx = self._env.getProxy(addr, self._group)
+
+        if len(state[addr]['shards']) == 0:
+            prx.addShard('')
+            self.addReplica('', addr)
+
+    def addReplica(self, shard, addr):
+        """Adds a new replica to the group.
+
+        Adds bi-directional links between the new replica at *addr* and all
+        existing replicas and populates the new replica with all existing data.
+
+        :param shard: the shard to be added
+        :param addr: the replica to be added
+        """
+        replicas = self._env.replicas(self._group, refresh=True)
+        state = getState(replicas)
+
+        shard_state = getShard(state, shard)
         m_addr = getMaster(shard_state)
 
-        if m_addr is None:
-            # When the first replica registers it need not have any shards
-            return
+        assert m_addr is not None
 
         env = self._env
         prx = env.getProxy(addr, self._group)
