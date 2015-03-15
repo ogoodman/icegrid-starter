@@ -2,7 +2,7 @@
 
 import Ice
 import simplejson as json
-from icecap import ibase
+from icecap import istorage
 from icecap.base.util import sHash, pcall, getAddr
 
 def getState(replicas):
@@ -105,17 +105,28 @@ class DataClient(object):
             self._master[s] = self._env.getProxy(addr, self._group)
         return self._master[s]
 
+    def call(self, method, path, *args):
+        try:
+            m = self._findMaster(path)
+            return getattr(m, method)(path, *args)
+        except (istorage.NoShard, Ice.NoEndpointException):
+            m = self._findMaster(path, refresh=True)
+            return getattr(m, method)(path, *args)
+
+    def callByShard(self, method, shard, *args):
+        try:
+            m = self._findMaster(shard=shard)
+            return getattr(m, method)(shard, *args)
+        except (istorage.NoShard, Ice.NoEndpointException):
+            m = self._findMaster(shard=shard, refresh=True)
+            return getattr(m, method)(shard, *args)
+
     def read(self, path):
         """Calls ``m.read(path)`` on the replica which is master for the shard containing *path*.
 
         :param path: the file path to read
         """
-        try:
-            m = self._findMaster(path)
-            return m.read(path)
-        except (ibase.NotMaster, Ice.NoEndpointException):
-            m = self._findMaster(path, refresh=True)
-            return m.read(path)
+        return self.call('read', path)
 
     def write(self, path, data):
         """Calls ``m.write(path, data)`` on the replica which is master for the shard containing *path*.
@@ -123,17 +134,7 @@ class DataClient(object):
         :param path: the file path to write
         :param data: the data to write
         """
-        try:
-            m = self._findMaster(path)
-            m.write(path, data)
-        except (ibase.NotMaster, Ice.NoEndpointException):
-            m = self._findMaster(path, refresh=True)
-            m.write(path, data)
+        return self.call('write', path, data)
 
     def list(self, shard):
-        try:
-            m = self._findMaster(shard=shard)
-            return m.list()
-        except (ibase.NotMaster, Ice.NoEndpointException):
-            m = self._findMaster(shard=shard, refresh=True)
-            return m.list()
+        return self.callByShard('list', shard)

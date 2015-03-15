@@ -2,6 +2,11 @@
 
 module icecap {
     module istorage {
+        exception NoShard {
+            string path;
+            string shard;
+        };
+
         exception FileNotFound {
         };
 
@@ -14,13 +19,13 @@ module icecap {
         };
 
         interface File {
-            ["amd"] Strings list() throws ibase::NotMaster;
-            ["amd"] string read(string path) throws FileNotFound, ibase::NotMaster;
-            ["amd"] void write(string path, string data) throws ibase::NotMaster;
+            ["amd"] Strings list(string shard) throws NoShard;
+            ["amd"] string read(string path) throws FileNotFound, NoShard;
+            ["amd"] void write(string path, string data) throws NoShard;
             // debugging
             string readRep(string path) throws FileNotFound;
             void writeRep(string path, string data);
-            Strings listRep();
+            Strings listRep(string shard);
             // replication
             void update(string info);
             void addPeer(string shard, string addr, bool sync);

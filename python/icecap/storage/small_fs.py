@@ -4,95 +4,98 @@ import os
 import random
 import sys
 import shutil
-from icecap import ibase, istorage
+from icecap import istorage
 from icecap.base.antenna import Antenna, notifyOnline
-from icecap.base.future import Future
-from icecap.base.master import mcall_f
-from icecap.base.util import openLocal, getAddr, getNode
+from icecap.base.util import openLocal
 from icecap.base.rep_log import RepLog
+from icecap.storage.data_node import DataNode
 
 HI = 2**63-1
 
-class File(istorage.File):
+class FileShardFactory(object):
+    def __init__(self, env):
+        self._env = env
+
+    def typeId(self):
+        return 'file'
+
+    def makeShard(self, shard):
+        return File(self._env, shard)
+
+class FileNode(DataNode, istorage.File):
     """A replicated file store for small files.
 
-    Files are stored under ``<local-data>/files``, with replication data
-    under ``<local-data>/files/.rep``.
+    Files are stored under ``<local-data>/file``, with replication data
+    under ``<local-data>/file/.rep``.
 
     :param env: server environment
     """
     def __init__(self, env):
+        DataNode.__init__(self, env, FileShardFactory(env))
+
+    def read_async(self, cb, path, curr=None):
+        """Get the contents of the specified file as a string.
+
+        :param path: the file to read
+        """
+        s = self._shardFor(path)
+        self.assertMasterFor_f(s).then(self._shard[s].read, path).iceCB(cb)
+
+    def readRep(self, path, curr=None):
+        s = self._shardFor(path)
+        return self._shard[s].read(path)
+
+    def write_async(self, cb, path, data, curr=None):
+        """Set the contents of the specified file.
+
+        :param path: the file to write
+        :param data: the data to write
+        """
+        s = self._shardFor(path)
+        self.assertMasterFor_f(s).then(self._shard[s].write, path, data).iceCB(cb)
+
+    def writeRep(self, path, data, curr=None):
+        s = self._shardFor(path)
+        self._shard[s].write(path, data)
+
+    def list_async(self, cb, shard, curr=None):
+        """Returns a list of all files."""
+        self.assertMasterFor_f(shard).then(self._shard[shard].list).iceCB(cb)
+
+    def listRep(self, shard, curr=None):
+        return self._shard[shard].list()
+
+    def update(self, info_s, curr=None):
+        """For replication only: applies the supplied json-encoded update.
+
+        :param info_s: a json encoded update
+        """
+        info = json.loads(info_s)
+        s = self._shardFor(info['path'])
+        self._shard[s].update(info)
+
+class File(object):
+    def __init__(self, env, shard):
         self._env = env
-        self._log = RepLog(env, 'files/.rep')
-        self._path = os.path.join(env.dataDir(), 'files')
+        self._lpath = 'file/S' + shard
+        self._path = os.path.join(env.dataDir(), self._lpath)
+        self._log = RepLog(env, self._lpath + '/.rep')
         self._new_replica = len(os.listdir(self._path)) < 2
-        self._env.onActivation(self._register)
-        self._env.subscribe('online', self._onOnline)
-        self._mgr = self._env.getProxy('file@DataManagerGroup', istorage.DataManagerPrx)
-        self._master_shards = None
         self._master_priority = random.randint(0, HI)
+        self._is_master = False
 
-    def _register(self):
-        reg_marker = os.path.join(self._path, '.rep/registered')
-        if os.path.exists(reg_marker):
-            return
-        def done():
-            open(reg_marker, 'w').write('')
-        name, node = self._env.serverId().split('-', 1)
-        addr = 'file@%s-%s.%sRep' % (name, node, name)
-        mcall_f(self._env, self._mgr, 'register', addr).then(done)
+    def masterState(self):
+        """Returns a list of *int64* giving the master priority of this replica.
 
-    def assertMasterFor_f(self, shard):
-        if self._master_shards is None or shard not in self._master_shards:
-            masters_f = mcall_f(self._env, self._mgr, 'getMasters')
-            return masters_f.then(self._assertMasterFor, shard)
-        return Future(None)
-
-    def _assertMasterFor(self, master_map_s, shard):
-        master_map = json.loads(master_map_s)
-        node = getNode(self._env.serverId())
-        self._master_shards = []
-        for s, addr in master_map.iteritems():
-            if getNode(addr) == node:
-                self._master_shards.append(s)
-        if shard not in self._master_shards:
-            raise ibase.NotMaster()
-
-    def assertMasterFor_async(self, cb, shard, curr=None):
-        self.assertMasterFor_f(shard).iceCB(cb)
-
-    def addPeer(self, shard, addr, sync, curr=None):
-        """Adds addr as a replica of this one, at the head of the log.
-
-        :param shard: not used (SmallFS has only one shard)
-        :param addr: proxy string of the replica to add
-        :param sync: (bool) whether to sync data from here to addr
+        The first entry is 1 if this replica is master, 0 otherwise. The
+        second entry gives priority to replicas that have already been
+        used. The last entry is a random number to use as a tie-breaker.
         """
-        if sync:
-            prx = self._env.getProxy(addr, self._proxy)
-            for path in self._list():
-                data = self.readRep(path)
-                prx.update(json.dumps({'path': path, 'data': data}))
-        self._log.addSink({'addr': addr, 'method': 'update'})
+        m_count = 1 if self._is_master else 0
+        return [m_count, 0 if self._new_replica else 1, self._master_priority]
 
-    def removePeer(self, shard, addr, curr=None):
-        """Removes addr as a replica of this one.
-
-        :param shard: not used (SmallFS has only one shard)
-        :param addr: proxy string of the replica to remove
-        """
-        self._log.removeSink(addr)
-
-    def peers(self, curr=None):
-        """Returns a list of peers this replica replicates to."""
-        return self._log.sinks()
-
-    def removeData(self, shard, curr=None):
-        """Removes all data from this replica."""
-        assert shard == ''
-        shutil.rmtree(self._path)
-        self._log = RepLog(self._env, 'files/.rep')
-        self._new_replica = True
+    def getState(self):
+        return {'replicas': self.peers(), 'priority': self.masterState()}
 
     def _onOnline(self, server_id):
         """Respond to a peer coming online."""
@@ -103,68 +106,60 @@ class File(istorage.File):
         if self._log.hasSink(addr):
             self._log.update(addr)
 
-    def masterState(self, curr=None):
-        """Returns a list of *int64* giving the master priority of this replica.
+    def peers(self):
+        """Returns a list of peers this replica replicates to."""
+        return self._log.sinks()
 
-        The first entry is 1 if this replica is master, 0 otherwise. The
-        second entry gives priority to replicas that have already been
-        used. The last entry is a random number to use as a tie-breaker.
+    def addPeer(self, addr, sync):
+        """Adds addr as a replica of this one, at the head of the log.
+
+        :param addr: proxy string of the replica to add
+        :param sync: (bool) whether to sync data from here to addr
         """
-        m_count = 1 if (self._master_shards and '' in self._master_shards) else 0
-        return [m_count, 0 if self._new_replica else 1, self._master_priority]
+        if sync:
+            prx = self._env.getProxy(addr, istorage.FilePrx)
+            for path in self._list():
+                data = self.read(path)
+                prx.update(json.dumps({'path': path, 'data': data}))
+        self._log.addSink({'addr': addr, 'method': 'update'})
 
-    def getState(self, curr=None):
-        """Returns the replication state of this data replica.
+    def removePeer(self, addr):
+        """Removes addr as a replica of this one.
 
-        The state takes the form::
-
-            {'shards': {'': {'replicas': [r0, r1,], 'priority': [p0, p1,]}}}
-
-        at least in the case of a SmallFS replica which only ever has the ``''`` shard.
+        :param addr: proxy string of the replica to remove
         """
-        shard = {'replicas': self.peers(), 'priority': self.masterState()}
-        return json.dumps({'shards': {'': shard}})
+        self._log.removeSink(addr)
 
-    def read_async(self, cb, path, curr=None):
-        """Get the contents of the specified file as a string.
-
-        :param path: the file to read
-        """
-        self.assertMasterFor_f('').then(self.readRep, path).iceCB(cb)
-
-    def readRep(self, path, curr=None):
-        assert not path.startswith('.')
-        try:
-            fh = openLocal(self._env, os.path.join('files', path))
-        except IOError:
-            raise istorage.FileNotFound()
-        return fh.read()
-
-    def write_async(self, cb, path, data, curr=None):
-        """Set the contents of the specified file.
-
-        :param path: the file to write
-        :param data: the data to write
-        """
-        self.assertMasterFor_f('').then(self.writeRep, path, data).iceCB(cb)
-
-    def writeRep(self, path, data, curr=None):
-        assert not path.startswith('.')
-        with openLocal(self._env, os.path.join('files', path), 'w') as out:
-            out.write(data)
-        self._env.do(self._log.append, json.dumps({'path':path, 'data':data}))
-
-    def update(self, info_s, curr=None):
+    def update(self, info):
         """For replication only: applies the supplied json-encoded update.
 
         :param info_s: a json encoded update
         """
-        info = json.loads(info_s)
-        with openLocal(self._env, os.path.join('files', info['path']), 'w') as out:
+        with openLocal(self._env, os.path.join(self._lpath, info['path']), 'w') as out:
             out.write(info['data'])
 
+    def read(self, path):
+        assert not path.startswith('.')
+        try:
+            fh = openLocal(self._env, os.path.join(self._lpath, path))
+        except IOError:
+            raise istorage.FileNotFound()
+        return fh.read()
+
+    def write(self, path, data):
+        assert not path.startswith('.')
+        with openLocal(self._env, os.path.join(self._lpath, path), 'w') as out:
+            out.write(data)
+        self._env.do(self._log.append, json.dumps({'path':path, 'data':data}))
+
+    def removeData(self):
+        """Removes all data from this replica."""
+        shutil.rmtree(self._path)
+        self._log = RepLog(self._env, self._lpath + '/.rep')
+        self._new_replica = True
+
     def _list(self):
-        root = os.path.join(self._env.dataDir(), 'files')
+        root = self._path
         plen = len(root) + 1
         for path, dirs, files in os.walk(root):
             if '.rep' in dirs:
@@ -172,14 +167,10 @@ class File(istorage.File):
             for f in files:
                 yield os.path.join(path, f)[plen:]
 
-    def list_async(self, cb, curr=None):
-        """Returns a list of all files."""
-        self.assertMasterFor_f('').then(self.listRep).iceCB(cb)
-
-    def listRep(self, curr=None):
+    def list(self):
         return list(self._list())
 
 def server(env):
-    env.provide('file', 'SmallFSRep', File(env))
+    env.provide('file', 'SmallFSRep', FileNode(env))
     env.provide('antenna', 'SmallFSRep', Antenna(env))
     env.onActivation(notifyOnline, env, env.serverId())
